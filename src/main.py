@@ -1,12 +1,16 @@
+import argparse
+import copy
+import importlib
+
 import numpy as np
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
-import importlib
-import copy
-import argparse
-from norms.measures import calculate
 from torchvision import transforms, datasets
+
+from norms.measures import calculate
+from models import vgg
+
 
 # train the model for one epoch on the given set
 def train(args, model, device, train_loader, criterion, optimizer, epoch):
@@ -125,7 +129,12 @@ def main():
     if args.dataset == 'CIFAR100': nclasses = 100
 
     # create an initial model
-    model = getattr(importlib.import_module('models.{}'.format(args.model)), 'Network')(nchannels, nclasses)
+    #model = getattr(importlib.import_module('.models.{}'.format(args.model)), 'Network')(nchannels, nclasses)
+    if args.model == "vgg":
+        model = vgg.Network(nchannels, nclasses)
+    else:
+        print("no valid model input.")
+        return
     model = model.to(device)
 
     # create a copy of the initial model to be used later
