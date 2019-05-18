@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 import importlib
 import copy
 import argparse
-from src import measures
+import src.measures as measures
 from torchvision import transforms, datasets
 
 # train the model for one epoch on the given set
