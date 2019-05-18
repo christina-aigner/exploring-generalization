@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 import importlib
 import copy
 import argparse
-from src import measures
+from norms.measures import calculate
 from torchvision import transforms, datasets
 
 # train the model for one epoch on the given set
@@ -161,7 +161,7 @@ def main():
             f'Training error: {tr_err:.3f}\t Validation error: {val_err:.3f}\n')
 
     # calcualtes various measures and bounds on the learned network
-    measure_dict, bound_dict = measures.calculate(model, init_model, device, train_loader, tr_margin, nchannels, nclasses, img_dim)
+    measure_dict, bound_dict = calculate(model, init_model, device, train_loader, tr_margin, nchannels, nclasses, img_dim)
 
     print('\n###### Measures')
     for key, value in measure_dict.items():
