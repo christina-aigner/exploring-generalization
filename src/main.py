@@ -125,7 +125,7 @@ def main():
     if args.dataset == 'CIFAR100': nclasses = 100
 
     # create an initial model
-    model = getattr(importlib.import_module('../models.{}'.format(args.model)), 'Network')(nchannels, nclasses)
+    model = getattr(importlib.import_module('models.{}'.format(args.model)), 'Network')(nchannels, nclasses)
     model = model.to(device)
 
     # create a copy of the initial model to be used later
