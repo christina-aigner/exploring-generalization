@@ -7,6 +7,7 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 
 from data_utils import load_data
+from models.model_utils import save_checkpoint
 from norms.measures import calculate
 from models import vgg
 
@@ -133,6 +134,8 @@ def main():
     train_dataset = load_data('train', args.dataset, args.datadir, nchannels)
     val_dataset = load_data('val', args.dataset, args.datadir, nchannels)
 
+    print("trainings set size: ", args.trainingsetsize)
+
     if args.trainingsetsize == -1:
         num_samples = len(train_dataset)
     # random seed with restricted size
@@ -150,6 +153,9 @@ def main():
 
         print(f'Epoch: {epoch + 1}/{args.epochs}\t Training loss: {tr_loss:.3f}\t',
                 f'Training error: {tr_err:.3f}\t Validation error: {val_err:.3f}')
+
+        if epoch in save_epochs:
+            save_checkpoint(epoch, model, args.randomlables, optimizer, tr_loss, tr_err, val_err, "../saved_models")
 
         # stop training if the cross-entropy loss is less than the stopping condition
         if tr_loss < args.stopcond: break
