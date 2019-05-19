@@ -137,9 +137,9 @@ def main():
     print("trainings set size: ", args.trainingsetsize)
 
     if args.trainingsetsize == -1:
-        num_samples = len(train_dataset)
+        args.trainingsetsize = len(train_dataset)
     # random seed with restricted size
-    sampler = torch.utils.data.RandomSampler(train_dataset, replacement=True, num_samples=num_samples)
+    sampler = torch.utils.data.RandomSampler(train_dataset, replacement=True, num_samples=args.trainingsetsize)
 
     train_loader = DataLoader(train_dataset, batch_size=batchsize, shuffle=False, sampler=sampler, **kwargs)
     val_loader = DataLoader(val_dataset, batch_size=batchsize, shuffle=False, **kwargs)
