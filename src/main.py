@@ -155,7 +155,7 @@ def main():
                 f'Training error: {tr_err:.3f}\t Validation error: {val_err:.3f}')
 
         if epoch in save_epochs:
-            save_checkpoint(epoch, model, args.randomlables, optimizer, tr_loss, tr_err, val_err, "../saved_models")
+            save_checkpoint(epoch, model, optimizer, args.randomlabels, tr_loss, tr_err, val_err, "../saved_models")
 
         # stop training if the cross-entropy loss is less than the stopping condition
         if tr_loss < args.stopcond: break
