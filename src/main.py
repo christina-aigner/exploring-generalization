@@ -10,6 +10,7 @@ from data_utils import load_data
 from norms.measures import calculate
 from models import vgg
 
+save_epochs = [5, 10, 50, 100, 500, 1000]
 
 # train the model for one epoch on the given set
 def train(args, model, device, train_loader, criterion, optimizer, epoch, random_labels=False):
@@ -79,13 +80,13 @@ def main():
                         help='training with random labels Yes or No? (options: True | False, default: False)')
     parser.add_argument('--numhiddenlayers', default=1, type=int,
                         help='number of hidden layers (options: 1-8k)')
-    parser.add_argument('--trainingsetsize', default='len(train_dataset)', type=int,
+    parser.add_argument('--trainingsetsize', default=-1, type=int,
                         help='size of the training set (options: 1k - 50k')
     parser.add_argument('--model', default='vgg', type=str,
                         help='architecture (options: fc | vgg, default: vgg)')
 
     # additional arguments
-    parser.add_argument('--epochs', default=1000, type=int,
+    parser.add_argument('--epochs', default=600, type=int,
                         help='number of epochs to train (default: 1000)')
     parser.add_argument('--stopcond', default=0.01, type=float,
                         help='stopping condtion based on the cross-entropy loss (default: 0.01)')
@@ -132,10 +133,12 @@ def main():
     train_dataset = load_data('train', args.dataset, args.datadir, nchannels)
     val_dataset = load_data('val', args.dataset, args.datadir, nchannels)
 
+    if args.trainingsetsize == -1:
+        num_samples = len(train_dataset)
     # random seed with restricted size
-    sampler = torch.utils.data.RandomSampler(train_dataset, num_samples=args.trainingsetsize)
+    sampler = torch.utils.data.RandomSampler(train_dataset, replacement=True, num_samples=num_samples)
 
-    train_loader = DataLoader(train_dataset, batch_size=batchsize, shuffle=True, sampler=sampler **kwargs)
+    train_loader = DataLoader(train_dataset, batch_size=batchsize, shuffle=False, sampler=sampler, **kwargs)
     val_loader = DataLoader(val_dataset, batch_size=batchsize, shuffle=False, **kwargs)
 
     # training the model
