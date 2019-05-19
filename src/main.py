@@ -11,7 +11,7 @@ from models.model_utils import save_checkpoint
 from norms.measures import calculate
 from models import vgg
 
-save_epochs = [5, 10, 50, 100, 500, 1000]
+save_epochs = [1, 3, 5, 7, 10, 50, 100, 500, 1000]
 
 # train the model for one epoch on the given set
 def train(args, model, device, train_loader, criterion, optimizer, epoch, random_labels=False):
@@ -155,7 +155,7 @@ def main():
                 f'Training error: {tr_err:.3f}\t Validation error: {val_err:.3f}')
 
         if epoch in save_epochs:
-            save_checkpoint(epoch, model, optimizer, args.randomlabels, tr_loss, tr_err, val_err, "../saved_models")
+            save_checkpoint(epoch, model, optimizer, args.randomlabels, tr_loss, tr_err, val_err, "../saved_models/checkpoint_{}_{}.pth".format(args.trainingsetsize, epoch))
 
         # stop training if the cross-entropy loss is less than the stopping condition
         if tr_loss < args.stopcond: break
