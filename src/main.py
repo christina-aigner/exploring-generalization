@@ -8,10 +8,9 @@ from torch.utils.data import DataLoader
 
 from data_utils import load_data
 from models.model_utils import save_checkpoint
-from norms.measures import calculate
 from models import vgg
 
-save_epochs = [1, 3, 5, 7, 10, 50, 100, 500, 1000]
+save_epochs = [1, 3, 5, 7, 10, 30, 50, 80, 100, 300, 500, 1000]
 
 # train the model for one epoch on the given set
 def train(args, model, device, train_loader, criterion, optimizer, epoch, random_labels=False):

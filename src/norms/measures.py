@@ -1,9 +1,6 @@
 import torch
 import math
 import copy
-import warnings
-import torch.nn as nn
-import pdb
 
 
 # This function reparametrizes the networks with batch normalization in a way that it calculates the same function as the
@@ -103,53 +100,3 @@ def lp_path_norm(model, device, p=2, input_size=[3, 32, 32]):
             param.abs_().pow_(p)
     data_ones = torch.ones(input_size).to(device)
     return (tmp_model(data_ones).sum() ** (1 / p )).item()
-
-
-# This function calculates various measures on the given model and returns two dictionaries:
-# 1) measures: different norm based measures on the model
-# 2) bounds: different generalization bounds on the model
-def calculate(trained_model, init_model, device, train_loader, margin, nchannels, nclasses, img_dim):
-
-    model = copy.deepcopy(trained_model)
-    reparam(model)
-    reparam(init_model)
-
-    # size of the training set
-    m = len(train_loader.dataset)
-
-    # depth
-    d = calc_measure(model, init_model, depth, 'sum', {})
-
-    # number of parameters (not including batch norm)
-    nparam = calc_measure(model, init_model, n_param, 'sum', {})
-
-    measure, bound = {}, {}
-    with torch.no_grad():
-        measure['L_{1,inf} norm'] = calc_measure(model, init_model, norm, 'product', {'p':1, 'q':float('Inf')}) / margin
-        measure['Frobenious norm'] = calc_measure(model, init_model, norm, 'product', {'p':2, 'q':2}) / margin
-        measure['L_{3,1.5} norm'] = calc_measure(model, init_model, norm, 'product', {'p':3, 'q':1.5}) / margin
-        measure['Spectral norm'] = calc_measure(model, init_model, op_norm, 'product', {'p':float('Inf')}) / margin
-        measure['L_1.5 operator norm'] = calc_measure(model, init_model, op_norm, 'product', {'p':1.5}) / margin
-        measure['Trace norm'] = calc_measure(model, init_model, op_norm, 'product', {'p':1}) / margin
-        measure['L1_path norm'] = lp_path_norm(model, device, p=1, input_size=[1, nchannels, img_dim, img_dim]) / margin
-        measure['L1.5_path norm'] = lp_path_norm(model, device, p=1.5, input_size=[1, nchannels, img_dim, img_dim]) / margin
-        measure['L2_path norm'] = lp_path_norm(model, device, p=2, input_size=[1, nchannels, img_dim, img_dim]) / margin
-
-
-        # Generalization bounds: constants and additive logarithmic factors are not included
-
-        # This value of alpha is based on the improved depth dependency by Golowith et al. 2018
-        alpha = math.sqrt(d + math.log(nchannels * img_dim * img_dim))
-
-        bound['L1_max Bound (Bartlett and Mendelson 2002)'] = alpha * measure['L_{1,inf} norm'] / math.sqrt(m)
-        bound['Frobenious Bound (Neyshabur et al. 2015)'] = alpha * measure['Frobenious norm'] / math.sqrt(m)
-        bound['L_{3,1.5} Bound (Neyshabur et al. 2015)'] = alpha * measure['L_{3,1.5} norm'] / ( m ** (1/3))
-
-        beta = math.log(m) * math.log(nparam)
-        ratio = calc_measure(model, init_model, h_dist_op_norm,'norm', {'p':2, 'q':1, 'p_op':float('Inf')}, p=2/3)
-        bound['Spec_L_{2,1} Bound (Bartlett et al. 2017)'] = beta * measure['Spectral norm'] * ratio / math.sqrt(m)
-
-        ratio = calc_measure(model, init_model, h_dist_op_norm,'norm', {'p':2, 'q':2, 'p_op':float('Inf')}, p=2)
-        bound['Spec_Fro Bound (Neyshabur et al. 2018)'] =  d * measure['Spectral norm'] * ratio / math.sqrt(m)
-
-    return measure, bound
