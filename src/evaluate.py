@@ -111,5 +111,5 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 eval = Evaluation(args.trainingsetsize, args.modelpath)
 init_model = vgg.Network(3, 10)
 
-norms, bounds = eval.calculate_norms(init_model, device, -1.011)
+norms, bounds = eval.calculate_norms(init_model, device, 4.496)
 print(norms)
