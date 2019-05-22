@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, Subset
 
 from data_utils import load_data
 from models.model_utils import save_checkpoint
-from models import vgg
+from models import vgg, fc
 
 save_epochs = [1, 5, 10, 30, 50, 100, 200, 300, 400, 500, 600, 1000]
 
@@ -26,6 +26,7 @@ def validate(args, model, device, data_loader: DataLoader, criterion):
 
             # compute the output
             output = model(data)
+
 
             # compute the classification error and loss
             pred = output.max(1)[1]
@@ -104,24 +105,24 @@ def main():
     # settings
     parser = argparse.ArgumentParser(description='Training a VGG Net')
     # arguments needed for experiments
+    parser.add_argument('--network', default='vgg', type=str,
+                        help='type of network (options: vgg | fc, default: vgg)')
     parser.add_argument('--randomlabels', default=False, type=bool,
                         help='training with random labels Yes or No? (options: True | False, default: False)')
-    parser.add_argument('--numhiddenlayers', default=1, type=int,
-                        help='number of hidden layers (options: 1-8k)')
+    parser.add_argument('--numhidden', default=1024, type=int,
+                        help='number of hidden layers (default: 1024)')
     parser.add_argument('--trainingsetsize', default=50000, type=int,
-                        help='size of the training set (options: 1k - 50k')
+                        help='size of the training set (options: 0 - 50k')
 
     # additional arguments
     parser.add_argument('--epochs', default=600, type=int,
-                        help='number of epochs to train (default: 1000)')
+                        help='number of epochs to train (default: 600)')
     parser.add_argument('--stopcond', default=0.01, type=float,
                         help='stopping condtion based on the cross-entropy loss (default: 0.01)')
     parser.add_argument('--no-cuda', default=False, action='store_true',
                         help='disables CUDA training')
     parser.add_argument('--datadir', default='../datasets', type=str,
                         help='path to the directory that contains the datasets (default: datasets)')
-    parser.add_argument('--dataset', default='CIFAR10', type=str,
-                        help='name of the dataset (options: MNIST | CIFAR10 | CIFAR100 | SVHN, default: CIFAR10)')
 
     args = parser.parse_args()
 
@@ -139,16 +140,22 @@ def main():
     nchannels, nclasses, img_dim,  = 3, 10, 32
 
     # create an initial model
-    model = vgg.Network(nchannels, nclasses)
+    if args.network == 'vgg':
+        # customized vgg network
+        model = vgg.Network(nchannels, nclasses)
+    elif args.network == 'fc':
+        # two layer perceptron
+        model = fc.Network(nchannels, nclasses)
+
     model = model.to(device)
 
-    # define loss function (criterion) and optimizer
+    # define loss function and optimizer
     criterion = nn.CrossEntropyLoss().to(device)
     optimizer = optim.SGD(model.parameters(), learningrate, momentum=momentum)
 
     # loading data
-    train_dataset = load_data('train', args.dataset, args.datadir)
-    val_dataset = load_data('val', args.dataset, args.datadir)
+    train_dataset = load_data('train', 'CIFAR10', args.datadir)
+    val_dataset = load_data('val', 'CIFAR10', args.datadir)
 
     print("trainings set size: ", args.trainingsetsize)
 

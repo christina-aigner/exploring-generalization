@@ -1,10 +1,10 @@
 import torch.nn as nn
 
 class Network(nn.Module):
-    def __init__(self, nchannels, nclasses):
+    def __init__(self, hiddenunits, nchannels, nclasses):
         super(Network, self).__init__()
-        self.classifier = nn.Sequential(nn.Linear( nchannels * 32 * 32, 1024 ), nn.ReLU(inplace=True),
-                                        nn.Linear( 1024, nclasses))
+        self.classifier = nn.Sequential(nn.Linear( nchannels * 32 * 32, hiddenunits ), nn.ReLU(inplace=True),
+                                        nn.Linear( hiddenunits, nclasses))
 
     def forward(self, x):
         x = x.view(x.size(0), -1)
