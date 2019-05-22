@@ -47,8 +47,7 @@ def validate(args, model, device, data_loader: DataLoader, criterion):
         else:
             len_dataset = len(data_loader.dataset)
 
-    return 1 - (sum_correct / len_dataset), sum_loss / len(
-        len_dataset), margin
+    return 1 - (sum_correct / len_dataset), (sum_loss / len_dataset), margin
 
 
 def train(args, model, device, train_loader: DataLoader, criterion, optimizer, train_random_labels=False):
