@@ -1,5 +1,6 @@
 from models.model_utils import load_model
 from models import vgg
+import numpy as np
 from norms.measures import *
 import argparse
 
@@ -16,7 +17,8 @@ class Evaluation:
         self.sharpness = None
         self.KL = None
 
-    def calculate_norms(self, init_model, device, margin, nchannels=3, img_dim=32):
+
+    def calculate_norms(self, init_model, device, nchannels=3, img_dim=32):
         model = copy.deepcopy(self.model)
         reparam(model)
         reparam(init_model)
@@ -92,24 +94,30 @@ class Evaluation:
         pass
 
 
-parser = argparse.ArgumentParser(description='Evaluation of a pre-trained model')
+def main():
+    parser = argparse.ArgumentParser(description='Evaluation of a pre-trained model')
 
-parser.add_argument('--trainingsetsize', type=int,
-                    help='size of the training set of the loaded model')
-parser.add_argument('--modelpath', type=str,
-                    help='path from which the pre-trained model should be loaded')
-parser.add_argument('--datadir', default='../datasets', type=str,
-                    help='path to the directory that contains the datasets')
-parser.add_argument('--dataset', default='CIFAR10', type=str,
-                    help='name of the dataset (options: MNIST | CIFAR10 | CIFAR100 '
-                         '| SVHN, default: CIFAR10)')
-args = parser.parse_args()
+    parser.add_argument('--trainingsetsize', type=int,
+                        help='size of the training set of the loaded model')
+    parser.add_argument('--modelpath', type=str,
+                        help='path from which the pre-trained model should be loaded')
+    parser.add_argument('--datadir', default='../datasets', type=str,
+                        help='path to the directory that contains the datasets')
+    parser.add_argument('--dataset', default='CIFAR10', type=str,
+                        help='name of the dataset (options: MNIST | CIFAR10 | CIFAR100 '
+                             '| SVHN, default: CIFAR10)')
+    args = parser.parse_args()
 
-# set up
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # set up
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-eval = Evaluation(args.trainingsetsize, args.modelpath)
-init_model = vgg.Network(3, 10)
+    eval = Evaluation(args.trainingsetsize, args.modelpath)
+    init_model = vgg.Network(3, 10)
 
-norms, bounds = eval.calculate_norms(init_model, device, 4.496)
-print(norms)
+    norms, bounds = eval.calculate_norms(init_model, device, 4.496)
+    print(norms)
+
+
+if __name__ == '__main__':
+    main()
+

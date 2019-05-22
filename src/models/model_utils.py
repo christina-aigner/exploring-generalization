@@ -17,7 +17,7 @@ def save_model(model, PATH):
     torch.save(model.state_dict(), PATH)
 
 
-def save_checkpoint(epoch, model, optimizer, random_labels, tr_loss, tr_error, val_error, PATH):
+def save_checkpoint(epoch, model, optimizer, random_labels, tr_loss, tr_error, val_error, margin, PATH):
     torch.save({
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
@@ -25,7 +25,8 @@ def save_checkpoint(epoch, model, optimizer, random_labels, tr_loss, tr_error, v
         'optimizer_state_dict': optimizer.state_dict(),
         'tr_loss': tr_loss,
         'tr_error': tr_error,
-        'val_error': val_error
+        'val_error': val_error,
+        'margin': margin
     }, PATH)
 
 
