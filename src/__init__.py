@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-
 import torch
 
 # Root context is cpu device

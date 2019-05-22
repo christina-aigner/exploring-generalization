@@ -1,4 +1,5 @@
 # ignore the following
 datasets/
+saved_models/
 .idea/
 *.pyc

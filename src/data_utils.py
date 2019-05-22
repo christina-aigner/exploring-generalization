@@ -3,7 +3,7 @@ from torchvision import transforms, datasets
 # Load and Preprocess data.
 # Loading: If the dataset is not in the given directory, it will be downloaded.
 # Preprocessing: This includes normalizing each channel and data augmentation by random cropping and horizontal flipping
-def load_data(split, dataset_name, datadir, nchannels):
+def load_data(split, dataset_name, datadir):
 
     if dataset_name == 'MNIST':
         normalize = transforms.Normalize(mean=[0.131], std=[0.289])
