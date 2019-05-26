@@ -180,8 +180,6 @@ def main():
 
         # stop training if the cross-entropy loss is less than the stopping condition
         if tr_loss < args.stopcond: break
-        if epoch == 2:
-            break
 
     # calculate the training error and margin of the learned model
     tr_err, tr_loss, margin = validate(args, model, device, train_loader, criterion)
