@@ -1,16 +1,7 @@
 import torch
-from .vgg import Network
 import torch.optim as optim
 
-
-def load_model(PATH, nchannels=3, nclasses=10):
-    model = Network(nchannels, nclasses)
-    if not torch.cuda.is_available():
-        checkpoint = torch.load(PATH, map_location=lambda storage, loc: storage)
-    else:
-        checkpoint = torch.load(PATH)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    return model.eval()
+from models import vgg, fc
 
 
 def save_model(model, PATH):
@@ -30,16 +21,44 @@ def save_checkpoint(epoch, model, optimizer, random_labels, tr_loss, tr_error, v
     }, PATH)
 
 
+def load_model(PATH, network='vgg', hiddenunits=1024, nchannels=3, nclasses=10):
+    if network == 'vgg':
+        model = vgg.Network(nchannels, nclasses)
+    elif network == 'fc':
+        model = fc.Network(hiddenunits, nchannels, nclasses)
+    else:
+        raise ValueError("no valid network parameter.")
+
+    if not torch.cuda.is_available():
+        checkpoint = torch.load(PATH, map_location=lambda storage, loc: storage)
+    else:
+        checkpoint = torch.load(PATH)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    return model.eval()
+
+
 def load_checkpoint_dict(PATH):
-    checkpoint = torch.load(PATH)
+    if not torch.cuda.is_available():
+        checkpoint = torch.load(PATH, map_location=lambda storage, loc: storage)
+    else:
+        checkpoint = torch.load(PATH)
     return checkpoint
 
 
-def load_checkpoint_train(PATH, nchannels=3, nclasses=10, learningrate=0.01, momentum=0.9):
+def load_checkpoint_train(PATH, network='vgg', hiddenunits=1024, nchannels=3,
+                          nclasses=10, learningrate=0.01, momentum=0.9):
+    if not torch.cuda.is_available():
+        checkpoint = torch.load(PATH, map_location=lambda storage, loc: storage)
+    else:
+        checkpoint = torch.load(PATH)
 
-    model = Network(nchannels, nclasses)
+    if network == 'vgg':
+        model = vgg.Network(nchannels, nclasses)
+    elif network == 'fc':
+        model = fc.Network(hiddenunits, nchannels, nclasses)
+    else:
+        raise ValueError("no valid network parameter.")
 
-    checkpoint = torch.load(PATH)
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer = optim.SGD(model.parameters(), learningrate, momentum=momentum)
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -47,6 +66,7 @@ def load_checkpoint_train(PATH, nchannels=3, nclasses=10, learningrate=0.01, mom
     model.train()
 
     return model, optimizer, checkpoint
+
 
 def reparam(model, prev_layer=None):
     """

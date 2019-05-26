@@ -1,9 +1,56 @@
-import torch
-import math
 import copy
+import math
+
+import torch
 
 
-def calc_measure(model, init_model, measure_func, operator, kwargs={}, p=1):
+def calc_norm(module_list, p: int, q: int, result: int):
+    for child in module_list:
+        module_name = child._get_name()
+        if module_name in ['Linear', 'Conv1d', 'Conv2d', 'Conv3d']:
+            result += math.log(norm(child, p, q))
+        else:
+            calc_norm(child, p, q, result)
+
+    return math.exp(result)
+
+
+def calc_spectral_norm(model, p: int, result: int):
+    for child in list(model.children()):
+        module_name = child._get_name()
+        if module_name in ['Linear', 'Conv1d', 'Conv2d', 'Conv3d']:
+            result += math.log(op_norm(child, p))
+        else:
+            calc_spectral_norm(child, p, result)
+
+    return math.exp(result)
+
+
+def get_depth(model):
+    result = 0
+    for child in model.children():
+        module_name = child._get_name()
+        if module_name in ['Linear', 'Conv1d', 'Conv2d', 'Conv3d']:
+            result += depth(child)
+        else:
+            get_depth(child)
+
+    return result
+
+
+def get_npara(model):
+    result = 0
+    for child in model.children():
+        module_name = child._get_name()
+        if module_name in ['Linear', 'Conv1d', 'Conv2d', 'Conv3d']:
+            result += n_param(child)
+        else:
+            get_depth(child)
+
+    return result
+
+
+def calc_measure(model, base_model, measure_func, operator, p=1):
     """
    calculates a measure on the given model measure_func is a function that returns
    a value for a given linear or convolutional layer
@@ -13,12 +60,14 @@ def calc_measure(model, init_model, measure_func, operator, kwargs={}, p=1):
     """
 
     if operator == 'product':
-        measure_val = math.exp(calc_measure(model, init_model, measure_func, 'log_product', kwargs, p))
+        measure_val = math.exp(
+            calc_measure(model, base_model, measure_func, 'log_product', kwargs, p))
     elif operator == 'norm':
-        measure_val = (calc_measure(model, init_model, measure_func, 'sum', kwargs, p=p)) ** (1 / p)
+        measure_val = (calc_measure(model, base_model, measure_func, 'sum', kwargs,
+                                    p=p)) ** (1 / p)
     else:
         measure_val = 0
-        for child, init_child in zip(model.children(), init_model.children()):
+        for child, init_child in zip(model.children(), base_model.children()):
             module_name = child._get_name()
             if module_name in ['Linear', 'Conv1d', 'Conv2d', 'Conv3d']:
                 if operator == 'log_product':
@@ -112,7 +161,7 @@ def n_hidden(module, init_module):
     return module.weight.size(0)
 
 
-def depth(module, init_module):
+def depth(module):
     """
     Gets the depth of a module. --> always 1 for any linear of convolutional layer
 
@@ -127,7 +176,7 @@ def depth(module, init_module):
     return 1
 
 
-def n_param(module, init_module):
+def n_param(module):
     """
     Gets the number of parameters of a module.
     Args:
@@ -150,7 +199,6 @@ def lp_path_norm(model, device, p=2, input_size=[3, 32, 32]):
         input_size:
 
     Returns:
-
     """
     tmp_model = copy.deepcopy(model)
     tmp_model.eval()

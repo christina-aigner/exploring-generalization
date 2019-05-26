@@ -1,14 +1,13 @@
 import argparse
-import copy
-from evaluate import Evaluation
+
 import numpy as np
 import torch
 from torch import nn, optim
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 
 from data_utils import load_data
-from models.model_utils import save_checkpoint
 from models import vgg, fc
+from models.model_utils import save_checkpoint
 
 save_epochs = [1, 5, 10, 30, 50, 100, 200, 300, 400, 500, 600, 1000]
 
@@ -175,17 +174,21 @@ def main():
                 f'Training error: {tr_err:.3f}\t Validation error: {val_err:.3f}')
 
         if epoch in save_epochs:
-            save_checkpoint(epoch, model, optimizer, args.randomlabels, tr_loss, tr_err, val_err, val_margin, "../saved_models/checkpoint_{}_{}.pth".format(args.trainingsetsize, epoch))
+            save_checkpoint(epoch, model, optimizer, args.randomlabels, tr_loss, tr_err,
+                            val_err, val_margin,
+                            f"../saved_models/checkpoint_{args.trainingsetsize}_{epoch}.pth")
 
         # stop training if the cross-entropy loss is less than the stopping condition
         if tr_loss < args.stopcond: break
+        if epoch == 2:
+            break
 
     # calculate the training error and margin of the learned model
     tr_err, tr_loss, margin = validate(args, model, device, train_loader, criterion)
     save_checkpoint(epoch, model, optimizer, args.randomlabels, tr_loss, tr_err,
                     val_err, margin,
-                    "../saved_models/checkpoint_{}_{}.pth".format(args.trainingsetsize,
-                                                                  epoch))
+                    "../saved_models/checkpoint_{args.trainingsetsize}_{epoch}.pth")
+
     print(f'\nFinal: Training loss: {tr_loss:.3f}\t Training margin {margin:.3f}\t ',
             f'Training error: {tr_err:.3f}\t Validation error: {val_err:.3f}\n')
 

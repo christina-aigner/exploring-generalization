@@ -1,9 +1,11 @@
-from models.model_utils import load_model, load_checkpoint_dict, reparam
-from torch.utils.data import DataLoader
-from models import vgg, fc
-import numpy as np
-from norms.measures import *
 import argparse
+
+import numpy as np
+from torch.utils.data import DataLoader
+
+from models import vgg, fc
+from models.model_utils import load_model, load_checkpoint_dict, reparam
+from norms.measures import *
 
 
 class Evaluation:
@@ -59,16 +61,16 @@ class Evaluation:
         reparam(model)
         reparam(init_model)
 
-        margin = self.checkpoint['margin']
+        margin: int = self.checkpoint['margin']
+
+        print(f"depth {get_depth(model)}")
+        print(f"params {get_npara(model)}")
+        model_list = list(model.children())
 
         with torch.no_grad():
-            self.l1_norm = calc_measure(model, init_model, norm, 'product',
-                                        {'p': 1, 'q': float('Inf')}) / margin
-            self.l2_norm = calc_measure(model, init_model, norm, 'product',
-                                        {'p': 2, 'q': 2}) / margin
-            self.spectral_norm = calc_measure(model, init_model, op_norm,
-                                              'product',
-                                              {'p': float('Inf')}) / margin
+            self.l1_norm = calc_norm(model_list, 1, float('Inf'), 0) / margin
+            self.l2_norm = calc_norm(model, 2, 2, 0) / margin
+            self.spectral_norm = calc_spectral_norm(model, float('Inf'), 0) / margin
             self.l1_path_norm = lp_path_norm(model, device, p=1,
                                              input_size=[1, nchannels, img_dim,
                                                          img_dim]) / margin
@@ -94,9 +96,9 @@ class Evaluation:
         model = copy.deepcopy(self.model)
         reparam(model)
         # depth
-        d = calc_measure(model, base_model, depth, 'sum', {})
+        d = get_depth(model, base_model)
         # number of parameters (not including batch norm)
-        nparam = calc_measure(model, base_model, n_param, 'sum', {})
+        nparam = get_npara(model, base_model)
 
         alpha = math.sqrt(d + math.log(nchannels * img_dim * img_dim))
 
@@ -145,10 +147,10 @@ def main():
     nchannels, nclasses, img_dim, = 3, 10, 32
 
     # create an initial model
-    if args.network == 'vgg':
+    if args.model == 'vgg':
         # customized vgg network
         model = vgg.Network(nchannels, nclasses)
-    elif args.network == 'fc':
+    elif args.model == 'fc':
         # two layer perceptron
         model = fc.Network(nchannels, nclasses)
 
