@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name="Training 50k real labels"
+#SBATCH --job-name="exgen_50k"
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
 #SBATCH --gres=gpu:1,VRAM:12G

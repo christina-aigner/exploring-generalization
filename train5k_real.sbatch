@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name="Training 50k real labels"
+#SBATCH --job-name="exgen_5k"
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
 #SBATCH --gres=gpu:1,VRAM:12G
 #SBATCH --mem=2GB
+#SBATCH --time=0:05:00
+#SBATCH --mail-type=ALL
 #SBATCH --output=/storage/slurm/logs/slurm-%j.out
 #SBATCH --error=/storage/slurm/logs/slurm-%j.out
-srun python train.py --trainingsetsize=30000 epochs=800
-srun python train.py --trainingsetsize=40000 epochs=800
-srun python train.py --trainingsetsize=50000 epochs=800
+srun python train.py --trainingsetsize=5000 epochs=800
 
