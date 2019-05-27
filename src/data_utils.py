@@ -1,9 +1,11 @@
+import numpy as np
 from torchvision import transforms, datasets
+
 
 # Load and Preprocess data.
 # Loading: If the dataset is not in the given directory, it will be downloaded.
 # Preprocessing: This includes normalizing each channel and data augmentation by random cropping and horizontal flipping
-def load_data(split, dataset_name, datadir):
+def load_data(split, dataset_name, datadir, corrupt_prob=1.0):
 
     if dataset_name == 'MNIST':
         normalize = transforms.Normalize(mean=[0.131], std=[0.289])
@@ -13,18 +15,51 @@ def load_data(split, dataset_name, datadir):
     tr_transform = transforms.Compose([transforms.Resize(32), transforms.ToTensor(), normalize])
     val_transform = transforms.Compose([transforms.Resize(32), transforms.ToTensor(), normalize])
 
-    get_dataset = getattr(datasets, dataset_name)
-
-    if dataset_name == 'SVHN':
-        if split == 'train':
-            dataset = get_dataset(root=datadir, split='train', download=True, transform=tr_transform)
-        else:
-            dataset = get_dataset(root=datadir, split='test', download=True, transform=val_transform)
-    else:
+    if dataset_name == 'CIFAR10':
         # if CIFAR dataset
         if split == 'train':
-            dataset = get_dataset(root=datadir, train=True, download=True, transform=tr_transform)
+            dataset = datasets.CIFAR10(root=datadir, train=True, download=True,
+                                       transform=tr_transform)
         else:
-            dataset = get_dataset(root=datadir, train=False, download=True, transform=val_transform)
-
+            dataset = datasets.CIFAR10(root=datadir, train=False, download=True,
+                                       transform=val_transform)
+    elif dataset_name == 'CIFAR10RandomLabels':
+        if split == 'train':
+            dataset = CIFAR10RandomLabels(root=datadir, train=True, download=True,
+                                          transform=tr_transform, corrupt_prob=corrupt_prob)
+        else:
+            dataset = CIFAR10RandomLabels(root=datadir, train=False, download=True,
+                                          transform=tr_transform, corrupt_prob=corrupt_prob)
+    else:
+        raise ValueError('not a valid dataset choice.')
     return dataset
+
+
+class CIFAR10RandomLabels(datasets.CIFAR10):
+    """CIFAR10 dataset, with support for randomly corrupt labels.
+    Params
+    ------
+    corrupt_prob: float
+      Default 1.0. The probability of a label being replaced with
+      random label.
+    num_classes: int
+      Default 10. The number of classes in the dataset.
+    """
+
+    def __init__(self, corrupt_prob=1.0, num_classes=10, **kwargs):
+        super(CIFAR10RandomLabels, self).__init__(**kwargs)
+        self.n_classes = num_classes
+        if corrupt_prob > 0:
+            self.corrupt_labels(corrupt_prob)
+
+    def corrupt_labels(self, corrupt_prob):
+        labels = np.array(self.targets)
+        np.random.seed(12345)
+        mask = np.random.rand(len(labels)) <= corrupt_prob
+        rnd_labels = np.random.choice(self.n_classes, mask.sum())
+        labels[mask] = rnd_labels
+        # we need to explicitly cast the labels from npy.int64 to
+        # builtin int type, otherwise pytorch will fail...
+        labels = [int(x) for x in labels]
+
+        self.targets = labels
