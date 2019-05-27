@@ -146,7 +146,7 @@ def main():
     # loading data
     if args.randomlabels == True:
         train_dataset = load_data('train', 'CIFAR10RandomLabels', args.datadir)
-        val_dataset = load_data('val', 'CIFAR10', args.datadir)
+        val_dataset = load_data('val', 'CIFAR10RandomLabels', args.datadir)
     else:
         train_dataset = load_data('train', 'CIFAR10', args.datadir)
         val_dataset = load_data('val', 'CIFAR10', args.datadir)

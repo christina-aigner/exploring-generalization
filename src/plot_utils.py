@@ -4,6 +4,6 @@ import matplotlib.pyplot as plt
 
 
 def plot_list(data: List, title):
-    plt.plt(data)
+    plt.plot(data)
     plt.title(title)
     plt.show()

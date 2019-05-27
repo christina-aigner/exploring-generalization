@@ -227,14 +227,18 @@ if __name__ == '__main__':
 
     real_labels_smallset = [
         (1000, 'checkpoint_1000_538.pth'),
-        (2000, 'checkpoint_2000_559.pth')
+        (2000, 'checkpoint_2000_559.pth'),
+        (3000, 'checkpoint_3000_463.pth'),
+        (4000, 'checkpoint_4000_468.pth'),
+        (5000, 'checkpoint_5000_504.pth')
     ]
 
     real_labels_largeset = [
         (10000, 'checkpoint_10000_434.pth'),
         (20000, 'checkpoint_20000_599.pth'),
         (30000, 'checkpoint_30000_599.pth'),
-        (40000, 'checkpoint_40000_599.pth')
+        (40000, 'checkpoint_40000_599.pth'),
+        (50000, 'checkpoint_50000_999.pth')
     ]
     # (50000, 'checkpoint_50000_500.pth')
 
@@ -247,7 +251,7 @@ if __name__ == '__main__':
     frobenius_bounds = []
     spec_l2_bounds = []
 
-    for model in real_labels_smallset:
+    for model in real_labels_largeset:
         setsize, filename = model
         checkpoint = load_checkpoint_dict(f'../saved_models/final/' + filename)
         margin: int = checkpoint['margin']
