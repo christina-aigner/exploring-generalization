@@ -4,6 +4,14 @@ import math
 import torch
 
 
+def add_perturbation(module_list, alpha=5e-4):
+    for child in module_list:
+        module_name = child._get_name()
+        if module_name in ['Linear', 'Conv1d', 'Conv2d', 'Conv3d']:
+            add_module_perturbation(child, alpha)
+        else:
+            add_perturbation(child, alpha)
+
 def calc_norm(module_list, p: int, q: int, result: int):
     for child in module_list:
         module_name = child._get_name()
@@ -48,37 +56,6 @@ def get_npara(model):
             get_depth(child)
 
     return result
-
-
-def calc_measure(model, base_model, measure_func, operator, p=1):
-    """
-   calculates a measure on the given model measure_func is a function that returns
-   a value for a given linear or convolutional layer
-   calc_measure calculates the values on individual layers and then calculate
-   the final value based on the given operation.
-
-    """
-
-    if operator == 'product':
-        measure_val = math.exp(
-            calc_measure(model, base_model, measure_func, 'log_product', kwargs, p))
-    elif operator == 'norm':
-        measure_val = (calc_measure(model, base_model, measure_func, 'sum', kwargs,
-                                    p=p)) ** (1 / p)
-    else:
-        measure_val = 0
-        for child, init_child in zip(model.children(), base_model.children()):
-            module_name = child._get_name()
-            if module_name in ['Linear', 'Conv1d', 'Conv2d', 'Conv3d']:
-                if operator == 'log_product':
-                    measure_val += math.log(measure_func(child, init_child, **kwargs))
-                elif operator == 'sum':
-                    measure_val += (measure_func(child, init_child, **kwargs)) ** p
-                elif operator == 'max':
-                    measure_val = max(measure_val, measure_func(child, init_child, **kwargs))
-            else:
-                measure_val += calc_measure(child, init_child, measure_func, operator, kwargs, p=p)
-    return measure_val
 
 
 def norm(module, p=2, q=2):
@@ -207,3 +184,16 @@ def lp_path_norm(model, device, p=2, input_size=[3, 32, 32]):
             param.abs_().pow_(p)
     data_ones = torch.ones(input_size).to(device)
     return (tmp_model(data_ones).sum() ** (1 / p)).item()
+
+
+def add_module_perturbation(module, alpha=5e-4):
+    """
+    add perturbation v = alpha * (|w| + 1) to a module
+    Args:
+        module:
+
+    Returns:
+
+    """
+
+    module.weight = alpha * (torch.abs(module.weight) + 1)

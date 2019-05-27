@@ -169,5 +169,31 @@ def main():
     print(f"Sharpness: todo")
 
 
+def calc_sharpness(model, device, train_loader, criterion):
+    clean_model = copy.deepcopy(model)
+    clean_error, clean_loss, clean_margin = validate(clean_model, device, train_loader, criterion)
+    eval_old.calc_measure(model, clean_model, 'add_perturbation', 'sharpness')
+    pert_error, pert_loss, pert_margin = validate(model, device, train_loader, criterion)
+    return pert_loss - clean_loss
+
+
+def PAC_KL(tr_loss, exp_sharpness, l2_reg, setsize, sigma=1, delta=0.2):
+    """
+
+    Args:
+        tr_loss: training loss
+        exp_sharpness: expected sharpness
+        l2_reg: l2 regularization of the model = |w|2
+        setsize: training set size of the training data
+        sigma: guassian variance
+        delta: probability, 1-delta is the prob. over the draw of the training set
+
+    Returns:
+
+    """
+    term = 4 * math.sqrt(
+        ((1 / setsize) * (l2_reg / (2 * (sigma ^ 2)))) + math.log((2 * setsize) / delta))
+    return tr_loss + exp_sharpness + term
+
 if __name__ == '__main__':
     main()

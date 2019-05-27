@@ -1,6 +1,4 @@
 import argparse
-import copy
-import math
 
 import numpy as np
 import torch
@@ -10,37 +8,8 @@ from torch.utils.data import DataLoader
 from data_utils import load_data
 from models import vgg, fc
 from models.model_utils import save_checkpoint
-from norms.measures import add_perturbation
 
 save_epochs = [1, 5, 10, 30, 50, 100, 200, 300, 400, 500, 600, 1000]
-
-
-def calc_sharpness(model, device, train_loader, criterion):
-    clean_model = copy.deepcopy(model)
-    clean_error, clean_loss, clean_margin = validate(clean_model, device, train_loader, criterion)
-    add_perturbation(model)
-    pert_error, pert_loss, pert_margin = validate(model, device, train_loader, criterion)
-    return torch.max(pert_loss - clean_loss)
-
-
-def PAC_KL(tr_loss, exp_sharpness, l2_reg, setsize, sigma=1, delta=0.2):
-    """
-
-    Args:
-        tr_loss: training loss
-        exp_sharpness: expected sharpness
-        l2_reg: l2 regularization of the model = |w|2
-        setsize: training set size of the training data
-        sigma: guassian variance
-        delta: probability, 1-delta is the prob. over the draw of the training set
-
-    Returns:
-
-    """
-    term = 4 * math.sqrt(
-        ((1 / setsize) * (l2_reg / (2 * (sigma ^ 2)))) + math.log((2 * setsize) / delta))
-    return tr_loss + exp_sharpness + term
-
 
 # evaluate the model on the given set
 def validate(model, device, data_loader: DataLoader, criterion):
@@ -71,10 +40,7 @@ def validate(model, device, data_loader: DataLoader, criterion):
                                0)
         margin = np.percentile(margin.cpu().numpy(), 5)
 
-        if data_loader.sampler:
-            len_dataset = len(data_loader.sampler)
-        else:
-            len_dataset = len(data_loader.dataset)
+        len_dataset = len(data_loader.dataset)
 
     return 1 - (sum_correct / len_dataset), (sum_loss / len_dataset), margin
 
@@ -119,10 +85,7 @@ def train(args, model, device, train_loader: DataLoader, criterion, optimizer):
         loss.backward()
         optimizer.step()
 
-        if train_loader.sampler:
-            len_dataset = len(train_loader.sampler)
-        else:
-            len_dataset = len(train_loader.dataset)
+        len_dataset = len(train_loader.dataset)
 
     return 1 - (sum_correct / len_dataset), (sum_loss / len_dataset)
 
@@ -133,8 +96,6 @@ def main():
     # settings
     parser = argparse.ArgumentParser(description='Training a VGG Net')
     # arguments needed for experiments
-    parser.add_argument('--modelpath', type=str,
-                        help='specify path of the model for which training should be continued.')
     parser.add_argument('--network', default='vgg', type=str,
                         help='type of network (options: vgg | fc, default: vgg)')
     parser.add_argument('--randomlabels', default=False, type=bool,
@@ -145,7 +106,7 @@ def main():
                         help='size of the training set (options: 0 - 50k')
 
     # additional arguments
-    parser.add_argument('--epochs', default=600, type=int,
+    parser.add_argument('--epochs', default=1000, type=int,
                         help='number of epochs to train (default: 600)')
     parser.add_argument('--stopcond', default=0.01, type=float,
                         help='stopping condtion based on the cross-entropy loss (default: 0.01)')
@@ -176,6 +137,8 @@ def main():
     elif args.network == 'fc':
         # two layer perceptron
         model = fc.Network(nchannels, nclasses)
+    else:
+        raise ValueError("not a valid network argument.")
 
     model = model.to(device)
 
@@ -189,9 +152,11 @@ def main():
 
     print("trainings set size: ", args.trainingsetsize)
 
+    train_subset = torch.utils.data.Subset(train_dataset, list(range(0, args.trainingsetsize)))
     # random seed with restricted size
-    sampler = torch.utils.data.SubsetRandomSampler(list(range(args.trainingsetsize)))
-    train_loader = DataLoader(train_dataset, batch_size=batchsize, sampler=sampler, **kwargs)
+    # sampler = torch.utils.data.SubsetRandomSampler(list(range(args.trainingsetsize)))
+    # train_loader = DataLoader(train_dataset, batch_size=batchsize, sampler=sampler, **kwargs)
+    train_loader = DataLoader(train_subset, batch_size=batchsize, shuffle=True, **kwargs)
     val_loader = DataLoader(val_dataset, batch_size=batchsize, shuffle=True, **kwargs)
 
     # training the model
@@ -221,8 +186,7 @@ def main():
     print(f'\nFinal: Training loss: {tr_loss:.3f}\t Training margin {margin:.3f}\t ',
             f'Training error: {tr_err:.3f}\t Validation error: {val_err:.3f}\n')
 
-    # sharpness = calc_sharpness(model, device, train_loader, criterion)
-    # print(sharpness)
+
 
 if __name__ == '__main__':
     main()

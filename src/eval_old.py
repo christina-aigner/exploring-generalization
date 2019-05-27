@@ -58,11 +58,25 @@ def calc_measure(model, init_model, measure_func, operator, kwargs={}, p=1):
                 elif operator == 'max':
                     measure_val = max(measure_val,
                                       measure_func(child, init_child, **kwargs))
+                elif operator == 'sharpness':
+                    measure_func(child)
             else:
                 measure_val += calc_measure(child, init_child, measure_func, operator,
                                             kwargs, p=p)
     return measure_val
 
+
+def add_perturbation(module, alpha=5e-4):
+    """
+    add perturbation v = alpha * (|w| + 1) to a module
+    Args:
+        module:
+
+    Returns:
+
+    """
+
+    module.weight = alpha * (torch.abs(module.weight) + 1)
 
 # calculates l_pq norm of the parameter matrix of a layer:
 # 1) l_p norm of incomming weights to each hidden unit and l_q norm on the hidden units
