@@ -12,7 +12,7 @@ from models.model_utils import save_checkpoint
 save_epochs = [1, 5, 10, 30, 50, 100, 200, 300, 400, 500, 600, 1000]
 
 # evaluate the model on the given set
-def validate(args, model, device, data_loader: DataLoader, criterion):
+def validate(model, device, data_loader: DataLoader, criterion):
     sum_loss, sum_correct = 0, 0
     margin = torch.Tensor([]).to(device)
 
@@ -45,7 +45,7 @@ def validate(args, model, device, data_loader: DataLoader, criterion):
     return 1 - (sum_correct / len_dataset), (sum_loss / len_dataset), margin
 
 
-def train(args, model, device, train_loader: DataLoader, criterion, optimizer):
+def train(model, device, train_loader: DataLoader, criterion, optimizer):
     """
     Train a model for one epoch
     Args:
@@ -163,9 +163,9 @@ def main():
     # training the model
     for epoch in range(0, args.epochs):
         # train for one epoch
-        tr_err, tr_loss = train(args, model, device, train_loader, criterion, optimizer)
+        tr_err, tr_loss = train(model, device, train_loader, criterion, optimizer)
 
-        val_err, val_loss, val_margin = validate(args, model, device, val_loader, criterion)
+        val_err, val_loss, val_margin = validate(model, device, val_loader, criterion)
 
         print(f'Epoch: {epoch + 1}/{args.epochs}\t Training loss: {tr_loss:.3f}\t',
                 f'Training error: {tr_err:.3f}\t Validation error: {val_err:.3f}')
@@ -179,7 +179,7 @@ def main():
         if tr_loss < args.stopcond: break
 
     # calculate the training error and margin of the learned model
-    tr_err, tr_loss, margin = validate(args, model, device, train_loader, criterion)
+    tr_err, tr_loss, margin = validate(model, device, train_loader, criterion)
     save_checkpoint(epoch, model, optimizer, args.randomlabels, tr_loss, tr_err,
                     val_err, margin,
                     f"../saved_models/checkpoint_{args.trainingsetsize}_{epoch}.pth")
