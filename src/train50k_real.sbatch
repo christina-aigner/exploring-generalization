@@ -6,5 +6,5 @@
 #SBATCH --mem=2GB
 #SBATCH --output=/storage/slurm/logs/slurm-%j.out
 #SBATCH --error=/storage/slurm/logs/slurm-%j.out
-srun python train.py --trainingsetsize=50000 epochs=800
+srun python train.py --trainingsetsize=50000 --epochs=800
 

@@ -1,4 +1,6 @@
 import argparse
+import copy
+import math
 
 import numpy as np
 import torch
@@ -8,12 +10,40 @@ from torch.utils.data import DataLoader
 from data_utils import load_data
 from models import vgg, fc
 from models.model_utils import save_checkpoint
+from norms.measures import add_perturbation
 
 save_epochs = [1, 5, 10, 30, 50, 100, 200, 300, 400, 500, 600, 1000]
 
 
+def calc_sharpness(model, device, train_loader, criterion):
+    clean_model = copy.deepcopy(model)
+    clean_error, clean_loss, clean_margin = validate(clean_model, device, train_loader, criterion)
+    add_perturbation(model)
+    pert_error, pert_loss, pert_margin = validate(model, device, train_loader, criterion)
+    return torch.max(pert_loss - clean_loss)
+
+
+def PAC_KL(tr_loss, exp_sharpness, l2_reg, setsize, sigma=1, delta=0.2):
+    """
+
+    Args:
+        tr_loss: training loss
+        exp_sharpness: expected sharpness
+        l2_reg: l2 regularization of the model = |w|2
+        setsize: training set size of the training data
+        sigma: guassian variance
+        delta: probability, 1-delta is the prob. over the draw of the training set
+
+    Returns:
+
+    """
+    term = 4 * math.sqrt(
+        ((1 / setsize) * (l2_reg / (2 * (sigma ^ 2)))) + math.log((2 * setsize) / delta))
+    return tr_loss + exp_sharpness + term
+
+
 # evaluate the model on the given set
-def validate(args, model, device, data_loader: DataLoader, criterion):
+def validate(model, device, data_loader: DataLoader, criterion):
     sum_loss, sum_correct = 0, 0
     margin = torch.Tensor([]).to(device)
 
@@ -25,7 +55,6 @@ def validate(args, model, device, data_loader: DataLoader, criterion):
 
             # compute the output
             output = model(data)
-
 
             # compute the classification error and loss
             pred = output.max(1)[1]
@@ -50,7 +79,7 @@ def validate(args, model, device, data_loader: DataLoader, criterion):
     return 1 - (sum_correct / len_dataset), (sum_loss / len_dataset), margin
 
 
-def train(args, model, device, train_loader: DataLoader, criterion, optimizer, train_random_labels=False):
+def train(args, model, device, train_loader: DataLoader, criterion, optimizer):
     """
     Train a model for one epoch
     Args:
@@ -73,7 +102,7 @@ def train(args, model, device, train_loader: DataLoader, criterion, optimizer, t
     for i, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
 
-        if train_random_labels:
+        if args.randomlabels == True:
             target = target[torch.randperm(target.size()[0])]
 
         # compute the output
@@ -104,6 +133,8 @@ def main():
     # settings
     parser = argparse.ArgumentParser(description='Training a VGG Net')
     # arguments needed for experiments
+    parser.add_argument('--modelpath', type=str,
+                        help='specify path of the model for which training should be continued.')
     parser.add_argument('--network', default='vgg', type=str,
                         help='type of network (options: vgg | fc, default: vgg)')
     parser.add_argument('--randomlabels', default=False, type=bool,
@@ -166,9 +197,9 @@ def main():
     # training the model
     for epoch in range(0, args.epochs):
         # train for one epoch
-        tr_err, tr_loss = train(args, model, device, train_loader, criterion, optimizer, train_random_labels=args.randomlabels)
+        tr_err, tr_loss = train(args, model, device, train_loader, criterion, optimizer)
 
-        val_err, val_loss, val_margin = validate(args, model, device, val_loader, criterion)
+        val_err, val_loss, val_margin = validate(model, device, val_loader, criterion)
 
         print(f'Epoch: {epoch + 1}/{args.epochs}\t Training loss: {tr_loss:.3f}\t',
                 f'Training error: {tr_err:.3f}\t Validation error: {val_err:.3f}')
@@ -182,14 +213,16 @@ def main():
         if tr_loss < args.stopcond: break
 
     # calculate the training error and margin of the learned model
-    tr_err, tr_loss, margin = validate(args, model, device, train_loader, criterion)
+    tr_err, tr_loss, margin = validate(model, device, train_loader, criterion)
     save_checkpoint(epoch, model, optimizer, args.randomlabels, tr_loss, tr_err,
                     val_err, margin,
-                    "../saved_models/checkpoint_{args.trainingsetsize}_{epoch}.pth")
+                    f"../saved_models/checkpoint_{args.trainingsetsize}_{epoch}.pth")
 
     print(f'\nFinal: Training loss: {tr_loss:.3f}\t Training margin {margin:.3f}\t ',
             f'Training error: {tr_err:.3f}\t Validation error: {val_err:.3f}\n')
 
+    # sharpness = calc_sharpness(model, device, train_loader, criterion)
+    # print(sharpness)
 
 if __name__ == '__main__':
     main()

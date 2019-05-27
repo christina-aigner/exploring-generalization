@@ -8,5 +8,5 @@
 #SBATCH --mail-type=ALL
 #SBATCH --output=/storage/slurm/logs/slurm-%j.out
 #SBATCH --error=/storage/slurm/logs/slurm-%j.out
-srun python train.py --trainingsetsize=5000 epochs=800
+srun python train.py --trainingsetsize=5000 --epochs=800
 
