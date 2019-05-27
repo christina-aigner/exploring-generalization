@@ -76,7 +76,7 @@ def add_perturbation(module, alpha=5e-4):
 
     """
 
-    module.weight = alpha * (torch.abs(module.weight) + 1)
+    module.weight.data = alpha * (torch.abs(module.weight.data) + 1)
 
 # calculates l_pq norm of the parameter matrix of a layer:
 # 1) l_p norm of incomming weights to each hidden unit and l_q norm on the hidden units

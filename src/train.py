@@ -1,4 +1,5 @@
 import argparse
+import copy
 
 import numpy as np
 import torch
@@ -6,6 +7,7 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 
 from data_utils import load_data
+from eval_old import calc_measure, add_perturbation
 from models import vgg, fc
 from models.model_utils import save_checkpoint
 
@@ -130,14 +132,14 @@ def main():
     # create an initial model
     if args.network == 'vgg':
         # customized vgg network
-        model = vgg.Network(nchannels, nclasses)
+        init_model = vgg.Network(nchannels, nclasses)
     elif args.network == 'fc':
         # two layer perceptron
-        model = fc.Network(nchannels, nclasses)
+        init_model = fc.Network(nchannels, nclasses)
     else:
         raise ValueError("not a valid network argument.")
 
-    model = model.to(device)
+    model = copy.deepcopy(init_model).to(device)
 
     # define loss function and optimizer
     criterion = nn.CrossEntropyLoss().to(device)
@@ -180,14 +182,22 @@ def main():
 
     # calculate the training error and margin of the learned model
     tr_err, tr_loss, margin = validate(model, device, train_loader, criterion)
+    sharpness = calc_sharpness(model, init_model, device, train_loader, criterion)
+
     save_checkpoint(epoch, model, optimizer, args.randomlabels, tr_loss, tr_err,
                     val_err, margin,
-                    f"../saved_models/checkpoint_{args.trainingsetsize}_{epoch}.pth")
+                    f"../saved_models/checkpoint_{args.trainingsetsize}_{epoch}.pth", sharpness)
 
     print(f'\nFinal: Training loss: {tr_loss:.3f}\t Training margin {margin:.3f}\t ',
             f'Training error: {tr_err:.3f}\t Validation error: {val_err:.3f}\n')
 
 
+def calc_sharpness(model, init_model, device, train_loader, criterion):
+    clean_model = copy.deepcopy(model)
+    clean_error, clean_loss, clean_margin = validate(clean_model, device, train_loader, criterion)
+    calc_measure(model, init_model, add_perturbation, 'sharpness')
+    pert_error, pert_loss, pert_margin = validate(model, device, train_loader, criterion)
+    return pert_loss - clean_loss
 
 if __name__ == '__main__':
     main()
