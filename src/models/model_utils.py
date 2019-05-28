@@ -10,11 +10,12 @@ def save_model(model, PATH):
 
 
 def save_checkpoint(epoch, model, optimizer, random_labels, tr_loss, tr_error, val_error, margin,
-                    sharpness, PATH):
+                    PATH, targets):
     torch.save(
         {'epoch': epoch, 'model_state_dict': model.state_dict(), 'random_labels': random_labels,
          'optimizer_state_dict': optimizer.state_dict(), 'tr_loss': tr_loss, 'tr_error': tr_error,
-         'val_error': val_error, 'margin': margin, 'sharpness': sharpness}, PATH)
+         'val_error': val_error, 'margin': margin,
+         'rand_targets': targets}, PATH)
 
 
 def load_model(PATH, network='vgg', hiddenunits=1024, nchannels=3, nclasses=10):

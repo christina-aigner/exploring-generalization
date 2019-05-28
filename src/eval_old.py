@@ -3,6 +3,7 @@ import copy
 import math
 
 import torch
+from torch.distributions import normal
 
 # This function reparametrizes the networks with batch normalization in a way that it calculates the same function as the
 # original network but without batch normalization. Instead of removing batch norm completely, we set the bias and mean
@@ -66,7 +67,7 @@ def calc_measure(model, init_model, measure_func, operator, kwargs={}, p=1):
     return measure_val
 
 
-def add_perturbation(module, alpha=5e-4):
+def add_random_perturbation(module, alpha=5e-4):
     """
     add perturbation v = alpha * (|w| + 1) to a module
     Args:
@@ -75,8 +76,16 @@ def add_perturbation(module, alpha=5e-4):
     Returns:
 
     """
+    upper_bound = alpha * (torch.abs(module.weight.data) + 1)
+    module.weight.data = torch.tensor.random_(0, upper_bound)
 
-    module.weight.data = alpha * (torch.abs(module.weight.data) + 1)
+
+def add_gauss_perturbation(module, alpha=5e-4):
+    std = alpha * (10 * torch.abs(module.weight.data) + 1)
+    m = normal.Normal(0, std)
+    perturbation = m.sample((1))
+    module.weight.data = module.weight.data + perturbation
+
 
 # calculates l_pq norm of the parameter matrix of a layer:
 # 1) l_p norm of incomming weights to each hidden unit and l_q norm on the hidden units
@@ -296,3 +305,11 @@ if __name__ == '__main__':
     plot_list(l1_max_bounds, 'l1 max bound')
     plot_list(spec_l2_bounds, 'spectral l2 bound')
     plot_list(frobenius_bounds, 'frobenius bound')
+
+
+def calc_sharpness(model, init_model, device, train_loader, criterion):
+    clean_model = copy.deepcopy(model)
+    clean_error, clean_loss, clean_margin = validate(clean_model, device, train_loader, criterion)
+    calc_measure(model, init_model, add_gauss_perturbation, 'sharpness')
+    pert_error, pert_loss, pert_margin = validate(model, device, train_loader, criterion)
+    return pert_loss - clean_loss

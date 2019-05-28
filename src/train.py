@@ -1,17 +1,17 @@
 import argparse
 import copy
+from collections import Counter
 
 import numpy as np
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
 
-from data_utils import load_data
-from eval_old import calc_measure, add_perturbation
+from data_utils import CIFARSubset
 from models import vgg, fc
 from models.model_utils import save_checkpoint
 
-save_epochs = [0, 1, 5, 10, 30, 50, 100, 200, 300, 400, 500, 600, 1000]
+save_epochs = [100, 200, 300, 400, 500, 600, 1000]
 
 # evaluate the model on the given set
 def validate(model, device, data_loader: DataLoader, criterion):
@@ -99,14 +99,14 @@ def main():
                         help='type of network (options: vgg | fc, default: vgg)')
     parser.add_argument('--randomlabels', default=False, type=bool,
                         help='training with random labels Yes or No? (options: True | False, default: False)')
-    parser.add_argument('--numhidden', default=1024, type=int,
+    parser.add_argument('--numhidden', default=None, type=int,
                         help='number of hidden layers (default: 1024)')
     parser.add_argument('--trainingsetsize', default=50000, type=int,
                         help='size of the training set (options: 0 - 50k')
 
     # additional arguments
-    parser.add_argument('--epochs', default=1000, type=int,
-                        help='number of epochs to train (default: 600)')
+    parser.add_argument('--epochs', default=1500, type=int,
+                        help='number of epochs to train (default: 1500)')
     parser.add_argument('--stopcond', default=0.01, type=float,
                         help='stopping condtion based on the cross-entropy loss (default: 0.01)')
     parser.add_argument('--no-cuda', default=False, action='store_true',
@@ -145,22 +145,9 @@ def main():
     criterion = nn.CrossEntropyLoss().to(device)
     optimizer = optim.SGD(model.parameters(), learningrate, momentum=momentum)
 
-    # loading data
-    if args.randomlabels == True:
-        train_dataset = load_data('train', 'CIFAR10RandomLabels', args.datadir)
-        val_dataset = load_data('val', 'CIFAR10RandomLabels', args.datadir)
-    else:
-        train_dataset = load_data('train', 'CIFAR10', args.datadir)
-        val_dataset = load_data('val', 'CIFAR10', args.datadir)
-
-    print("trainings set size: ", args.trainingsetsize)
-
-    train_subset = torch.utils.data.Subset(train_dataset, list(range(0, args.trainingsetsize)))
-    # random seed with restricted size
-    # sampler = torch.utils.data.SubsetRandomSampler(list(range(args.trainingsetsize)))
-    # train_loader = DataLoader(train_dataset, batch_size=batchsize, sampler=sampler, **kwargs)
-    train_loader = DataLoader(train_subset, batch_size=batchsize, shuffle=True, **kwargs)
-    val_loader = DataLoader(val_dataset, batch_size=batchsize, shuffle=True, **kwargs)
+    # load data
+    train_loader, val_loader = CIFARSubset(args, kwargs)
+    used_targets = train_loader.dataset.dataset.targets
 
     # training the model
     for epoch in range(0, args.epochs):
@@ -174,30 +161,31 @@ def main():
 
         if epoch in save_epochs:
             save_checkpoint(epoch, model, optimizer, args.randomlabels, tr_loss, tr_err,
-                            val_err, val_margin, None,
-                            f"../saved_models/checkpoint_{args.trainingsetsize}_{epoch}.pth")
+                            val_err, val_margin,
+                            f"../saved_models/cp_{args.network}_{args.numhidden}_{args.trainingsetsize}_{epoch}.pth",
+                            used_targets)
 
         # stop training if the cross-entropy loss is less than the stopping condition
-        if tr_loss < args.stopcond: break
+        if tr_err < args.stopcond: break
 
     # calculate the training error and margin of the learned model
     tr_err, tr_loss, margin = validate(model, device, train_loader, criterion)
-    sharpness = calc_sharpness(model, init_model, device, train_loader, criterion)
+    # sharpness = calc_sharpness(model, init_model, device, train_loader, criterion)
 
     save_checkpoint(epoch, model, optimizer, args.randomlabels, tr_loss, tr_err,
-                    val_err, margin, sharpness,
-                    f"../saved_models/checkpoint_{args.trainingsetsize}_{epoch}.pth")
+                    val_err, margin,
+                    f"../saved_models/cp_{args.network}_{args.numhidden}_{args.trainingsetsize}_{epoch}.pth",
+                    used_targets)
 
     print(f'\nFinal: Training loss: {tr_loss:.3f}\t Training margin {margin:.3f}\t ',
             f'Training error: {tr_err:.3f}\t Validation error: {val_err:.3f}\n')
 
 
-def calc_sharpness(model, init_model, device, train_loader, criterion):
-    clean_model = copy.deepcopy(model)
-    clean_error, clean_loss, clean_margin = validate(clean_model, device, train_loader, criterion)
-    calc_measure(model, init_model, add_perturbation, 'sharpness')
-    pert_error, pert_loss, pert_margin = validate(model, device, train_loader, criterion)
-    return pert_loss - clean_loss
+def get_classbalance(dataset, setsize, kwargs):
+    train2_loader = DataLoader(dataset, batch_size=setsize, shuffle=True, **kwargs)
+    for data, target in train2_loader:
+        return Counter(target.numpy())
+
 
 if __name__ == '__main__':
     main()

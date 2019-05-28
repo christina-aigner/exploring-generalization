@@ -1,4 +1,6 @@
 import numpy as np
+import torch
+from torch.utils.data import DataLoader
 from torchvision import transforms, datasets
 
 
@@ -63,3 +65,19 @@ class CIFAR10RandomLabels(datasets.CIFAR10):
         labels = [int(x) for x in labels]
 
         self.targets = labels
+
+
+def CIFARSubset(args, kwargs, batchsize=64):
+    # loading data
+    if args.randomlabels == True:
+        train_dataset = load_data('train', 'CIFAR10RandomLabels', args.datadir)
+    else:
+        train_dataset = load_data('train', 'CIFAR10', args.datadir)
+
+    val_dataset = load_data('val', 'CIFAR10', args.datadir)
+    train_subset = torch.utils.data.Subset(train_dataset, list(range(0, args.trainingsetsize)))
+
+    train_loader = DataLoader(train_subset, batch_size=batchsize, shuffle=True, **kwargs)
+    val_loader = DataLoader(val_dataset, batch_size=batchsize, shuffle=True, **kwargs)
+
+    return train_loader, val_loader
