@@ -1,5 +1,6 @@
 import torch
 import torch.optim as optim
+from torchvision import models
 
 from models import vgg, fc
 
@@ -9,18 +10,11 @@ def save_model(model, PATH):
 
 
 def save_checkpoint(epoch, model, optimizer, random_labels, tr_loss, tr_error, val_error, margin,
-                    PATH, sharpness=None):
-    torch.save({
-        'epoch': epoch,
-        'model_state_dict': model.state_dict(),
-        'random_labels': random_labels,
-        'optimizer_state_dict': optimizer.state_dict(),
-        'tr_loss': tr_loss,
-        'tr_error': tr_error,
-        'val_error': val_error,
-        'margin': margin,
-        'sharpness': sharpness
-    }, PATH)
+                    sharpness, PATH):
+    torch.save(
+        {'epoch': epoch, 'model_state_dict': model.state_dict(), 'random_labels': random_labels,
+         'optimizer_state_dict': optimizer.state_dict(), 'tr_loss': tr_loss, 'tr_error': tr_error,
+         'val_error': val_error, 'margin': margin, 'sharpness': sharpness}, PATH)
 
 
 def load_model(PATH, network='vgg', hiddenunits=1024, nchannels=3, nclasses=10):
@@ -69,6 +63,17 @@ def load_checkpoint_train(PATH, network='vgg', hiddenunits=1024, nchannels=3,
 
     return model, optimizer, checkpoint
 
+
+def load_densenet():
+    return models.densenet161(pretrained=True)
+
+
+def load_resnext():
+    return models.resnext50_32x4d(pretrained=True)
+
+
+def load_alexnet():
+    return models.alexnet(pretrained=True)
 
 def reparam(model, prev_layer=None):
     """

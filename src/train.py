@@ -11,7 +11,7 @@ from eval_old import calc_measure, add_perturbation
 from models import vgg, fc
 from models.model_utils import save_checkpoint
 
-save_epochs = [1, 5, 10, 30, 50, 100, 200, 300, 400, 500, 600, 1000]
+save_epochs = [0, 1, 5, 10, 30, 50, 100, 200, 300, 400, 500, 600, 1000]
 
 # evaluate the model on the given set
 def validate(model, device, data_loader: DataLoader, criterion):
@@ -135,7 +135,7 @@ def main():
         init_model = vgg.Network(nchannels, nclasses)
     elif args.network == 'fc':
         # two layer perceptron
-        init_model = fc.Network(nchannels, nclasses)
+        init_model = fc.Network(args.numhidden, nchannels, nclasses)
     else:
         raise ValueError("not a valid network argument.")
 
@@ -174,7 +174,7 @@ def main():
 
         if epoch in save_epochs:
             save_checkpoint(epoch, model, optimizer, args.randomlabels, tr_loss, tr_err,
-                            val_err, val_margin,
+                            val_err, val_margin, None,
                             f"../saved_models/checkpoint_{args.trainingsetsize}_{epoch}.pth")
 
         # stop training if the cross-entropy loss is less than the stopping condition
@@ -185,8 +185,8 @@ def main():
     sharpness = calc_sharpness(model, init_model, device, train_loader, criterion)
 
     save_checkpoint(epoch, model, optimizer, args.randomlabels, tr_loss, tr_err,
-                    val_err, margin,
-                    f"../saved_models/checkpoint_{args.trainingsetsize}_{epoch}.pth", sharpness)
+                    val_err, margin, sharpness,
+                    f"../saved_models/checkpoint_{args.trainingsetsize}_{epoch}.pth")
 
     print(f'\nFinal: Training loss: {tr_loss:.3f}\t Training margin {margin:.3f}\t ',
             f'Training error: {tr_err:.3f}\t Validation error: {val_err:.3f}\n')

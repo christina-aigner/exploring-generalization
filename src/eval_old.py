@@ -240,6 +240,22 @@ if __name__ == '__main__':
         (40000, 'checkpoint_40000_599.pth'),
         (50000, 'checkpoint_50000_999.pth')
     ]
+
+    random_labels_smallset = [
+        (1000, 'checkpoint_1000_999.pth'),
+        (2000, 'checkpoint_2000_999.pth'),
+        (3000, 'checkpoint_3000_999.pth'),
+        (4000, 'checkpoint_4000_999.pth'),
+        (5000, 'checkpoint_5000_999.pth')
+    ]
+
+    random_labels_largeset = [
+        (10000, 'checkpoint_10000_999.pth'),
+        (20000, 'checkpoint_20000_999.pth'),
+        (30000, 'checkpoint_30000_999.pth'),
+        (40000, 'checkpoint_40000_999.pth'),
+        (50000, 'checkpoint_50000_999.pth')
+    ]
     # (50000, 'checkpoint_50000_500.pth')
 
     l1_norms = []
@@ -251,11 +267,11 @@ if __name__ == '__main__':
     frobenius_bounds = []
     spec_l2_bounds = []
 
-    for model in real_labels_largeset:
+    for model in random_labels_smallset:
         setsize, filename = model
-        checkpoint = load_checkpoint_dict(f'../saved_models/final/' + filename)
+        checkpoint = load_checkpoint_dict(f'../saved_models/random_labels/training_set/' + filename)
         margin: int = checkpoint['margin']
-        model = load_model(f'../saved_models/final/' + filename)
+        model = load_model(f'../saved_models/random_labels/training_set/' + filename)
 
         l1, l2, spec, l1_path, l2_path, l1_max_bound, frob_bound, spec_l2_bound = calculate(
             model, init_model, device, setsize, margin, nchannels, nclasses, img_dim)
