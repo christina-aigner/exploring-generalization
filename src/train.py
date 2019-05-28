@@ -2,49 +2,16 @@ import argparse
 import copy
 from collections import Counter
 
-import numpy as np
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
 
-from data_utils import CIFARSubset
 from models import vgg, fc
-from models.model_utils import save_checkpoint
+from utils.data_utils import CIFARSubset
+from utils.eval_utils import validate
+from utils.model_utils import save_checkpoint
 
 save_epochs = [100, 200, 300, 400, 500, 600, 1000]
-
-# evaluate the model on the given set
-def validate(model, device, data_loader: DataLoader, criterion):
-    sum_loss, sum_correct = 0, 0
-    margin = torch.Tensor([]).to(device)
-
-    # switch to evaluation mode
-    model.eval()
-    with torch.no_grad():
-        for i, (data, target) in enumerate(data_loader):
-            data, target = data.to(device), target.to(device)
-
-            # compute the output
-            output = model(data)
-
-            # compute the classification error and loss
-            pred = output.max(1)[1]
-            sum_correct += pred.eq(target).sum().item()
-            sum_loss += len(data) * criterion(output, target).item()
-
-            # compute the margin
-            output_m = output.clone()
-            for i in range(target.size(0)):
-                output_m[i, target[i]] = output_m[i, :].min()
-            margin = torch.cat((margin, output[:, target].diag() - output_m[:,
-                                                                   output_m.max(1)[
-                                                                       1]].diag()),
-                               0)
-        margin = np.percentile(margin.cpu().numpy(), 5)
-
-        len_dataset = len(data_loader.dataset)
-
-    return 1 - (sum_correct / len_dataset), (sum_loss / len_dataset), margin
 
 
 def train(model, device, train_loader: DataLoader, criterion, optimizer):
@@ -124,7 +91,8 @@ def main():
     # cuda settings
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
-    print("cuda available:", torch.cuda.is_available())
+    print("cuda available:", )
+    use_cuda = torch.cuda.is_available()
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
 
     nchannels, nclasses, img_dim,  = 3, 10, 32
@@ -146,7 +114,7 @@ def main():
     optimizer = optim.SGD(model.parameters(), learningrate, momentum=momentum)
 
     # load data
-    train_loader, val_loader = CIFARSubset(args, kwargs)
+    train_loader, val_loader = CIFARSubset(args, **kwargs)
     used_targets = train_loader.dataset.dataset.targets
 
     # training the model

@@ -67,7 +67,7 @@ class CIFAR10RandomLabels(datasets.CIFAR10):
         self.targets = labels
 
 
-def CIFARSubset(args, kwargs, batchsize=64):
+def CIFARSubset(args, batchsize=64, **kwargs):
     # loading data
     if args.randomlabels == True:
         train_dataset = load_data('train', 'CIFAR10RandomLabels', args.datadir)
