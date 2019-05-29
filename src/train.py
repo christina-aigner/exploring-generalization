@@ -11,7 +11,7 @@ from utils.data_utils import CIFARSubset
 from utils.eval_utils import validate
 from utils.model_utils import save_checkpoint
 
-save_epochs = [100, 200, 300, 400, 500, 600, 1000]
+save_epochs = [100, 200, 300, 400, 500, 600, 700]
 
 
 def train(model, device, train_loader: DataLoader, criterion, optimizer):
@@ -72,8 +72,8 @@ def main():
                         help='size of the training set (options: 0 - 50k')
 
     # additional arguments
-    parser.add_argument('--epochs', default=1500, type=int,
-                        help='number of epochs to train (default: 1500)')
+    parser.add_argument('--epochs', default=800, type=int,
+                        help='number of epochs to train (default: 800)')
     parser.add_argument('--stopcond', default=0.01, type=float,
                         help='stopping condtion based on the cross-entropy loss (default: 0.01)')
     parser.add_argument('--no-cuda', default=False, action='store_true',
