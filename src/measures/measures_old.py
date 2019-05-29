@@ -10,6 +10,26 @@ from torch.distributions import normal
 # Warning: This function only works for convolutional and fully connected networks. It also assumes that
 # module.children() returns the children of a module in the forward pass order. Recurssive construction is allowed.
 
+class Sharpness:
+    def __init__(self):
+        self.A = None
+        self.upper = None
+        self.lower = None
+        self.current_pert = None
+        self.clean_error = None
+        self.sharpness = None
+
+    def update_bounds(self, module, alpha=5e-4):
+        upper = alpha * (module.weight.data + 1)
+        lower = -alpha * (module.weight.data + 1)
+        if upper > self.upper:
+            self.upper = upper
+        if lower < self.lower:
+            self.lower = lower
+
+    def add_perturbation(self, module, v):
+        module.weight.data = self.A * v
+
 
 def add_random_perturbation(module, alpha=5e-4):
     """

@@ -67,8 +67,21 @@ def reparam(model, prev_layer=None):
                 child.running_var.fill_(1)
     return prev_layer
 
-
 def calc_sharpness(model, init_model, device, train_loader, criterion):
+    sh = Sharpness()
+    calc_measure(model, init_model, sh.update_bounds, 'sharpness')
+    for v in range(sh.lower, sh.upper, 0.01):
+        sh.current_pert = v
+        model = copy.deepcopy(model)
+        calc_measure(model, init_model, sh.add_perturbation, 'sharpness')
+        tr_error, tr_loss, _ = validate(model, device, train_loader, criterion)
+        local_sharpness = tr_error - sh.clean_error
+        if local_sharpness > sh.sharpness:
+            sh.sharpness = local_sharpness
+    return sh.sharpness
+
+
+def old_calc_sharpness(model, init_model, device, train_loader, criterion):
     clean_model = copy.deepcopy(model)
     clean_error, clean_loss, clean_margin = validate(clean_model, device, train_loader, criterion)
     calc_measure(model, init_model, add_gauss_perturbation, 'sharpness')

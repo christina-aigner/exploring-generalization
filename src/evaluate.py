@@ -5,7 +5,7 @@ from torch.nn import CrossEntropyLoss
 
 from models import vgg
 from utils.data_utils import CIFARSubset
-from utils.eval_utils import calculate
+from utils.eval_utils import calculate, calc_sharpness
 from utils.model_utils import load_checkpoint_dict, load_model
 from utils.plot_utils import plot_list
 
@@ -83,13 +83,14 @@ if __name__ == '__main__':
     l1_max_bounds = []
     frobenius_bounds = []
     spec_l2_bounds = []
+    sharpness_list = []
 
-    for model in random_labels_smallset:
+    for model in random_labels_largeset:
         # setup - parse checkpoint
         setsize, filename = model
         checkpoint = load_checkpoint_dict(f'../saved_models/random_labels/training_set/' + filename)
         margin: int = checkpoint['margin']
-        used_targets = checkpoint['rand_targets']
+        # used_targets = checkpoint['rand_targets']
         model = load_model(f'../saved_models/random_labels/training_set/' + filename)
         train_loader, val_loader = CIFARSubset(args, **kwargs)
         criterion = CrossEntropyLoss().to(device)
@@ -106,6 +107,7 @@ if __name__ == '__main__':
         spec_l2_bounds.append(float(spec_l2_bound))
 
         sharpness = calc_sharpness(model, init_model, device, train_loader, criterion)
+        sharpness_list.append(sharpness)
 
     plot_list(l1_norms, 'l1 norm')
     plot_list(l2_norms, 'l2 norm')
