@@ -11,7 +11,7 @@ from utils.data_utils import CIFARSubset
 from utils.eval_utils import validate
 from utils.model_utils import save_checkpoint
 
-save_epochs = [100, 200, 300, 400, 500, 600, 700]
+save_epochs = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500]
 
 
 def train(model, device, train_loader: DataLoader, criterion, optimizer):
