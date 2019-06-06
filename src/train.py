@@ -1,13 +1,12 @@
 import argparse
 import copy
-from collections import Counter
 
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
 
 from models import vgg, fc
-from utils.data_utils import CIFARSubset
+from utils.data_utils import MNIST
 from utils.eval_utils import validate
 from utils.model_utils import save_checkpoint
 
@@ -72,7 +71,7 @@ def main():
                         help='size of the training set (options: 0 - 50k')
 
     # additional arguments
-    parser.add_argument('--epochs', default=800, type=int,
+    parser.add_argument('--epochs', default=500, type=int,
                         help='number of epochs to train (default: 800)')
     parser.add_argument('--stopcond', default=0.01, type=float,
                         help='stopping condtion based on the cross-entropy loss (default: 0.01)')
@@ -114,8 +113,8 @@ def main():
     optimizer = optim.SGD(model.parameters(), learningrate, momentum=momentum)
 
     # load data
-    train_loader, val_loader = CIFARSubset(args, **kwargs)
-    used_targets = train_loader.dataset.dataset.targets
+    train_loader, val_loader = MNIST(args, **kwargs)
+    used_targets = train_loader.dataset.targets
 
     # training the model
     for epoch in range(0, args.epochs):
@@ -134,7 +133,7 @@ def main():
                             used_targets)
 
         # stop training if the cross-entropy loss is less than the stopping condition
-        if tr_err < args.stopcond: break
+        if tr_loss < args.stopcond: break
 
     # calculate the training error and margin of the learned model
     tr_err, tr_loss, margin = validate(model, device, train_loader, criterion)
@@ -147,12 +146,6 @@ def main():
 
     print(f'\nFinal: Training loss: {tr_loss:.3f}\t Training margin {margin:.3f}\t ',
             f'Training error: {tr_err:.3f}\t Validation error: {val_err:.3f}\n')
-
-
-def get_classbalance(dataset, setsize, kwargs):
-    train2_loader = DataLoader(dataset, batch_size=setsize, shuffle=True, **kwargs)
-    for data, target in train2_loader:
-        return Counter(target.numpy())
 
 
 if __name__ == '__main__':

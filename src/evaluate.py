@@ -5,9 +5,9 @@ from torch.nn import CrossEntropyLoss
 
 from models import vgg
 from utils.data_utils import CIFARSubset
-from utils.eval_utils import calculate, calc_sharpness
+from utils.eval_utils import calculate, calc_exp_sharpness
 from utils.model_utils import load_checkpoint_dict, load_model
-from utils.plot_utils import plot_list
+from utils.plot_utils import *
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluation of a pre-trained model')
@@ -31,15 +31,31 @@ if __name__ == '__main__':
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     nchannels, nclasses, img_dim, = 3, 10, 32
-    init_model = vgg.Network(3, 10)
 
     real_labels_all = [
         (1000, 'checkpoint_1000_538.pth'),
         (2000, 'checkpoint_2000_559.pth'),
+        (3000, 'checkpoint_3000_463.pth'),
+        (4000, 'checkpoint_4000_468.pth'),
+        (5000, 'checkpoint_5000_504.pth'),
         (10000, 'checkpoint_10000_434.pth'),
         (20000, 'checkpoint_20000_599.pth'),
         (30000, 'checkpoint_30000_599.pth'),
-        (40000, 'checkpoint_40000_599.pth')
+        (40000, 'checkpoint_40000_599.pth'),
+        (50000, 'checkpoint_50000_999.pth')
+    ]
+
+    random_labels_all = [
+        (1000, 'checkpoint_1000_999.pth'),
+        (2000, 'checkpoint_2000_999.pth'),
+        (3000, 'checkpoint_3000_999.pth'),
+        (4000, 'checkpoint_4000_999.pth'),
+        # (5000, 'checkpoint_5000_999.pth'),
+        (10000, 'checkpoint_10000_999.pth'),
+        (20000, 'checkpoint_20000_999.pth'),
+        # (30000, 'checkpoint_30000_999.pth'),
+        # (40000, 'checkpoint_40000_999.pth'),
+        # (50000, 'checkpoint_50000_999.pth')
     ]
 
     real_labels_smallset = [
@@ -63,7 +79,7 @@ if __name__ == '__main__':
         (2000, 'checkpoint_2000_999.pth'),
         (3000, 'checkpoint_3000_999.pth'),
         (4000, 'checkpoint_4000_999.pth'),
-        (5000, 'checkpoint_5000_999.pth')
+        #(5000, 'checkpoint_5000_999.pth')
     ]
 
     random_labels_largeset = [
@@ -73,7 +89,30 @@ if __name__ == '__main__':
         (40000, 'checkpoint_40000_999.pth'),
         (50000, 'checkpoint_50000_999.pth')
     ]
-    # (50000, 'checkpoint_50000_500.pth')
+
+    fc_random = [
+        (10000, 'cp_fc_8_10000_1499.pth', 8),
+        (10000, 'cp_fc_16_10000_1000.pth', 16),
+        (10000, 'cp_fc_32_10000_799.pth', 32),
+        (10000, 'cp_fc_64_10000_397.pth', 64),
+        (10000, 'cp_fc_128_10000_104.pth', 128),
+        (10000, 'cp_fc_256_10000_30.pth', 256),
+        (10000, 'cp_fc_512_10000_15.pth', 512),
+        (10000, 'cp_fc_1024_10000_20.pth', 1024),
+        (10000, 'cp_fc_2048_10000_18.pth', 2048)
+    ]
+
+    fc_real = [
+        (10000, 'cp_fc_8_10000_1499.pth', 8),
+        (10000, 'cp_fc_16_10000_889.pth', 16),
+        (10000, 'cp_fc_32_10000_201.pth', 32),
+        (10000, 'cp_fc_64_10000_199.pth', 64),
+        (10000, 'cp_fc_128_10000_77.pth', 128),
+        (10000, 'cp_fc_256_10000_25.pth', 256),
+        (10000, 'cp_fc_512_10000_15.pth', 512),
+        (10000, 'cp_fc_1024_10000_799.pth', 1024)
+    ]
+
 
     l1_norms = []
     l2_norms = []
@@ -84,16 +123,31 @@ if __name__ == '__main__':
     frobenius_bounds = []
     spec_l2_bounds = []
     sharpness_list = []
+    tr_error_list = []
+    tr_loss_list = []
+    val_error_list = []
 
-    for model in random_labels_largeset:
+    for model in random_labels_all:
         # setup - parse checkpoint
+        path = '../saved_models/random_labels/training_set/'
         setsize, filename = model
-        checkpoint = load_checkpoint_dict(f'../saved_models/random_labels/training_set/' + filename)
+        print(setsize)
+        init_model = vgg.Network(3, 10)
+        # init_model = fc.Network(num_hidden, 3, 10)
+        checkpoint = load_checkpoint_dict(path + filename)
         margin: int = checkpoint['margin']
         # used_targets = checkpoint['rand_targets']
-        model = load_model(f'../saved_models/random_labels/training_set/' + filename)
+        # model = load_model(path + filename, 'fc', num_hidden)
+        model = load_model(path + filename)
+        #train_labels = checkpoint['rand_targets']
         train_loader, val_loader = CIFARSubset(args, **kwargs)
+        #train_loader.dataset.targets = train_labels
         criterion = CrossEntropyLoss().to(device)
+
+        tr_error_list.append(checkpoint['tr_error'])
+        tr_loss_list.append(checkpoint['tr_loss'])
+        val_error_list.append(checkpoint['val_error'])
+
 
         l1, l2, spec, l1_path, l2_path, l1_max_bound, frob_bound, spec_l2_bound = calculate(
             model, init_model, device, setsize, margin, nchannels, nclasses, img_dim)
@@ -106,15 +160,31 @@ if __name__ == '__main__':
         frobenius_bounds.append(float(frob_bound))
         spec_l2_bounds.append(float(spec_l2_bound))
 
-        sharpness = calc_sharpness(model, init_model, device, train_loader, criterion)
-        sharpness_list.append(sharpness)
+        sharpness = calc_exp_sharpness(model, init_model, device, train_loader, criterion)
+        print('sharpness', sharpness)
 
-    plot_list(l1_norms, 'l1 norm')
+    # x_big = ['10K', '20K', '30K', '40K', '50K']
+    x_small = ['1K', '2K', '3K', '4K', '5K', '10K', '20K']
+    # x_small = ['10K', '20K', '30K', '50K']
+    x_big = ['8', '16', '32', '64', '128', '256', '512', '1k']
+    # plot_error(tr_error_list, val_error_list, x_small, 'Random Labels VGG')
+    all_data = (l2_norms, l1_path_norms, l2_path_norms, spec_norms)
+    plot_all(all_data, x_small, 'Norms for random labels VGG')
+
     plot_list(l2_norms, 'l2 norm')
-    plot_list(spec_norms, 'spectral norm')
-    plot_list(l1_path_norms, 'l1 path norm')
-    plot_list(l2_path_norms, 'l2 path norm')
+    plot_list(l1_path_norms, 'l1path')
+    plot_list(l2_path_norms, 'l2path')
+    plot_list(spec_norms, 'spectral')
+    plot_l2_norm(l2_norms, x_small)
+    print(l2_norms)
+    plot_spectral(spec_norms, x_small)
+    print(spec_norms)
+    plot_l1_path(l1_path_norms, x_small)
+    print(l1_path_norms)
+    plot_l2_path(l2_path_norms, x_small)
+    print(l2_path_norms)
 
     plot_list(l1_max_bounds, 'l1 max bound')
     plot_list(spec_l2_bounds, 'spectral l2 bound')
     plot_list(frobenius_bounds, 'frobenius bound')
+    plot_list(sharpness_list, 'sharpness')

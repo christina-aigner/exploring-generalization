@@ -1,3 +1,5 @@
+from collections import Counter
+
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
@@ -32,6 +34,13 @@ def load_data(split, dataset_name, datadir, corrupt_prob=1.0):
         else:
             dataset = CIFAR10RandomLabels(root=datadir, train=False, download=True,
                                           transform=tr_transform, corrupt_prob=corrupt_prob)
+    elif dataset_name == 'MNIST':
+        if split == 'train':
+            dataset = datasets.MNIST(root=datadir, train=True, transform=tr_transform,
+                                     download=True)
+        else:
+            dataset = datasets.MNIST(root=datadir, train=False, transform=val_transform,
+                                     download=True)
     else:
         raise ValueError('not a valid dataset choice.')
     return dataset
@@ -81,3 +90,24 @@ def CIFARSubset(args, batchsize=64, **kwargs):
     val_loader = DataLoader(val_dataset, batch_size=batchsize, shuffle=True, **kwargs)
 
     return train_loader, val_loader
+
+
+def MNIST(args, batchsize=64, **kwargs):
+    # loading data
+    if args.randomlabels == True:
+        train_dataset = load_data('train', 'MNIST', args.datadir)
+    else:
+        train_dataset = load_data('train', 'MNIST', args.datadir)
+
+    val_dataset = load_data('val', 'MNIST', args.datadir)
+
+    train_loader = DataLoader(train_dataset, batch_size=batchsize, shuffle=True, **kwargs)
+    val_loader = DataLoader(val_dataset, batch_size=batchsize, shuffle=True, **kwargs)
+
+    return train_loader, val_loader
+
+
+def get_classbalance(dataset, setsize, kwargs):
+    train2_loader = DataLoader(dataset, batch_size=setsize, shuffle=True, **kwargs)
+    for data, target in train2_loader:
+        return Counter(target.numpy())

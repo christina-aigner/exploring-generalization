@@ -1,4 +1,5 @@
 import math
+import random
 
 import numpy as np
 from torch.utils.data import DataLoader
@@ -70,8 +71,10 @@ def reparam(model, prev_layer=None):
 def calc_sharpness(model, init_model, device, train_loader, criterion):
     sh = Sharpness()
     calc_measure(model, init_model, sh.update_bounds, 'sharpness')
-    for v in range(sh.lower, sh.upper, 0.01):
-        sh.current_pert = v
+    sh.clean_error, clean_loss, _ = validate(model, device, train_loader, criterion)
+    # collect 20 random samples
+    for v in range(1):
+        sh.current_pert = random.uniform(sh.lower.numpy(), sh.upper.numpy())
         model = copy.deepcopy(model)
         calc_measure(model, init_model, sh.add_perturbation, 'sharpness')
         tr_error, tr_loss, _ = validate(model, device, train_loader, criterion)
@@ -81,7 +84,7 @@ def calc_sharpness(model, init_model, device, train_loader, criterion):
     return sh.sharpness
 
 
-def old_calc_sharpness(model, init_model, device, train_loader, criterion):
+def calc_exp_sharpness(model, init_model, device, train_loader, criterion):
     clean_model = copy.deepcopy(model)
     clean_error, clean_loss, clean_margin = validate(clean_model, device, train_loader, criterion)
     calc_measure(model, init_model, add_gauss_perturbation, 'sharpness')
@@ -160,6 +163,60 @@ def calculate(trained_model, init_model, device, trainingsetsize, margin, nchann
         measure['L1.5_path norm'] = lp_path_norm(model, device, p=1.5,
                                                  input_size=[1, nchannels, img_dim,
                                                              img_dim]) / margin
+
+        # Generalization bounds: constants and additive logarithmic factors are not included
+        # This value of alpha is based on the improved depth dependency by Golowith et al. 2018
+        alpha = math.sqrt(d + math.log(nchannels * img_dim * img_dim))
+        # L1_max Bound (Bartlett and Mendelson 2002)
+        l1_max_bound = (alpha * l1_norm / math.sqrt(m))
+        # Frobenious Bound (Neyshabur et al. 2015)
+        frobenius_bound = (alpha * l2_norm / math.sqrt(m))
+
+        # 'Spec_Fro Bound (Neyshabur et al. 2018)'
+        ratio = calc_measure(model, init_model, h_dist_op_norm, 'norm',
+                             {'p': 2, 'q': 2, 'p_op': float('Inf')}, p=2)
+        spec_l2_bound = (d * spec_norm * ratio / math.sqrt(m))
+
+    return l1_norm, l2_norm, spec_norm, l1_path, l2_path, l1_max_bound, frobenius_bound, spec_l2_bound
+
+
+def calculate_no_margin(trained_model, init_model, device, trainingsetsize, nchannels,
+                        nclasses, img_dim):
+    model = copy.deepcopy(trained_model)
+    reparam(model)
+    reparam(init_model)
+
+    # size of the training set
+    m = trainingsetsize
+
+    # depth
+    d = calc_measure(model, init_model, depth, 'sum', {})
+
+    # number of parameters (not including batch norm)
+    nparam = calc_measure(model, init_model, n_param, 'sum', {})
+
+    measure, bound = {}, {}
+    with torch.no_grad():
+        l1_norm = calc_measure(model, init_model, norm, 'product',
+                               {'p': 1, 'q': float('Inf')})
+        l2_norm = calc_measure(model, init_model, norm, 'product',
+                               {'p': 2, 'q': 2})
+        spec_norm = calc_measure(model, init_model, op_norm, 'product',
+                                 {'p': float('Inf')})
+        l1_path = lp_path_norm(model, device, p=1,
+                               input_size=[1, nchannels, img_dim, img_dim])
+        l2_path = lp_path_norm(model, device, p=2,
+                               input_size=[1, nchannels, img_dim, img_dim])
+
+        measure['L_{3,1.5} norm'] = calc_measure(model, init_model, norm, 'product',
+                                                 {'p': 3, 'q': 1.5})
+        measure['L_1.5 operator norm'] = calc_measure(model, init_model, op_norm,
+                                                      'product', {'p': 1.5})
+        measure['Trace norm'] = calc_measure(model, init_model, op_norm, 'product',
+                                             {'p': 1})
+        measure['L1.5_path norm'] = lp_path_norm(model, device, p=1.5,
+                                                 input_size=[1, nchannels, img_dim,
+                                                             img_dim])
 
         # Generalization bounds: constants and additive logarithmic factors are not included
         # This value of alpha is based on the improved depth dependency by Golowith et al. 2018
