@@ -67,11 +67,11 @@ def main():
                         help='training with random labels Yes or No? (options: True | False, default: False)')
     parser.add_argument('--numhidden', default=None, type=int,
                         help='number of hidden layers (default: 1024)')
-    parser.add_argument('--trainingsetsize', default=50000, type=int,
+    parser.add_argument('--trainingsetsize', default=60000, type=int,
                         help='size of the training set (options: 0 - 50k')
 
     # additional arguments
-    parser.add_argument('--epochs', default=500, type=int,
+    parser.add_argument('--epochs', default=1000, type=int,
                         help='number of epochs to train (default: 800)')
     parser.add_argument('--stopcond', default=0.01, type=float,
                         help='stopping condtion based on the cross-entropy loss (default: 0.01)')
@@ -94,7 +94,7 @@ def main():
     use_cuda = torch.cuda.is_available()
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
 
-    nchannels, nclasses, img_dim,  = 3, 10, 32
+    nchannels, nclasses, img_dim, = 1, 10, 32
 
     # create an initial model
     if args.network == 'vgg':
@@ -114,7 +114,9 @@ def main():
 
     # load data
     train_loader, val_loader = MNIST(args, **kwargs)
-    used_targets = train_loader.dataset.targets
+    used_targets = None
+    if args.randomlabels == True:
+        used_targets = train_loader.dataset.targets
 
     # training the model
     for epoch in range(0, args.epochs):
@@ -133,7 +135,7 @@ def main():
                             used_targets)
 
         # stop training if the cross-entropy loss is less than the stopping condition
-        if tr_loss < args.stopcond: break
+        if tr_loss < args.stopcond or tr_err < args.stopcond: break
 
     # calculate the training error and margin of the learned model
     tr_err, tr_loss, margin = validate(model, device, train_loader, criterion)

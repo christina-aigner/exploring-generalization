@@ -12,40 +12,39 @@ from torch.distributions import normal
 
 class Sharpness:
     def __init__(self):
-        self.A = None
-        self.upper = None
-        self.lower = None
+        self.upper = 0.0
+        self.lower = 0.0
         self.current_pert = None
         self.clean_error = None
-        self.sharpness = None
+        self.sharpness = 0.0
 
     def update_bounds(self, module, alpha=5e-4):
-        upper = alpha * (module.weight.data + 1)
-        lower = -alpha * (module.weight.data + 1)
+        upper = torch.max(alpha * (module.weight.data + 1))
+        lower = torch.min(-alpha * (module.weight.data + 1))
+
         if upper > self.upper:
             self.upper = upper
         if lower < self.lower:
             self.lower = lower
 
-    def add_perturbation(self, module, v):
-        module.weight.data = self.A * v
+    def add_perturbation(self, module):
+        module.weight.data = module.weight.data + self.current_pert
 
+    def add_random_perturbation(self, module, alpha=5e-4):
+        """
+        add perturbation v = alpha * (|w| + 1) to a module
+        Args:
+            module:
 
-def add_random_perturbation(module, alpha=5e-4):
-    """
-    add perturbation v = alpha * (|w| + 1) to a module
-    Args:
-        module:
+        Returns:
 
-    Returns:
-
-    """
-    upper_bound = alpha * (torch.abs(module.weight.data) + 1)
-    module.weight.data = torch.tensor.random_(0, upper_bound)
+        """
+        upper_bound = alpha * (torch.abs(module.weight.data) + 1)
+        module.weight.data = torch.tensor.random_(0, upper_bound)
 
 
 def add_gauss_perturbation(module, alpha=5e-4):
-    std = alpha * (10 * torch.abs(module.weight.data) + 1)
+    std = alpha * (10 * torch.abs(torch.mean(module.weight.data)) + 1)
     m = normal.Normal(0, std)
     perturbation = m.sample((1))
     module.weight.data = module.weight.data + perturbation
@@ -94,11 +93,13 @@ def n_hidden(module, init_module):
 def depth(module, init_module):
     return 1
 
+
 # number of parameters
 def n_param(module, init_module):
     bparam = 0 if module.bias is None else module.bias.size(0)
     return bparam + module.weight.size(0) * module.weight.view(module.weight.size(0),
                                                                -1).size(1)
+
 
 # This function calculates path-norm introduced in Neyshabur et al. 2015
 def lp_path_norm(model, device, p=2, input_size=[3, 32, 32]):

@@ -8,5 +8,5 @@
 #SBATCH --mail-type=ALL
 #SBATCH --output=/usr/stud/aignerc/development/slurm/logs/slurm-%j.out
 #SBATCH --error=/usr/stud/aignerc/development/slurm/logs/slurm-%j.out
-srun python train.py --network=fc --epochs=1200 --trainingsetsize=10000 --numhidden=16 --randomlabels=True
+srun python train.py --network=fc --numhidden=16 --randomlabels=True
 
