@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name="exgen_fc_32_random"
+#SBATCH --job-name="exgen_fc_4096"
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
 #SBATCH --gres=gpu:1,VRAM:12G
@@ -8,5 +8,5 @@
 #SBATCH --mail-type=ALL
 #SBATCH --output=/usr/stud/aignerc/development/slurm/logs/slurm-%j.out
 #SBATCH --error=/usr/stud/aignerc/development/slurm/logs/slurm-%j.out
-srun python train.py --network=fc --numhidden=32 --randomlabels=True
+srun python train.py --network=fc --numhidden=4096
 
