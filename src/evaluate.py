@@ -3,9 +3,9 @@ import argparse
 import torch
 from torch.nn import CrossEntropyLoss
 
-from models import vgg
-from utils.data_utils import CIFARSubset
-from utils.eval_utils import calculate, calc_exp_sharpness
+from models import fc
+from utils.data_utils import MNIST
+from utils.eval_utils import calculate
 from utils.model_utils import load_checkpoint_dict, load_model
 from utils.plot_utils import *
 
@@ -113,6 +113,19 @@ if __name__ == '__main__':
         (10000, 'cp_fc_1024_10000_799.pth', 1024)
     ]
 
+    fc_mnist = [
+        (60000, 'cp_fc_8_60000_999.pth', 8),
+        (60000, 'cp_fc_16_60000_999.pth', 16),
+        (60000, 'cp_fc_32_60000_37.pth', 32),
+        (60000, 'cp_fc_64_60000_11.pth', 64),
+        (60000, 'cp_fc_128_60000_7.pth', 128),
+        (60000, 'cp_fc_256_60000_6.pth', 256),
+        (60000, 'cp_fc_512_60000_5.pth', 512),
+        (60000, 'cp_fc_1024_60000_4.pth', 1024),
+        (60000, 'cp_fc_2048_60000_4.pth', 2048),
+        (60000, 'cp_fc_4096_60000_4.pth', 4096),
+        (60000, 'cp_fc_8192_60000_3.pth', 8192)
+    ]
 
     l1_norms = []
     l2_norms = []
@@ -127,20 +140,21 @@ if __name__ == '__main__':
     tr_loss_list = []
     val_error_list = []
 
-    for model in random_labels_all:
+    for model in fc_mnist:
         # setup - parse checkpoint
-        path = '../saved_models/random_labels/training_set/'
-        setsize, filename = model
-        print(setsize)
-        init_model = vgg.Network(3, 10)
-        # init_model = fc.Network(num_hidden, 3, 10)
+        path = '../saved_models/real_labels/fc_mnist/'
+        setsize, filename, num_hidden = model
+        print(num_hidden)
+        nchannels = 1
+        # init_model = vgg.Network(3, 10)
+        init_model = fc.Network(num_hidden, 1, 10)
         checkpoint = load_checkpoint_dict(path + filename)
         margin: int = checkpoint['margin']
         # used_targets = checkpoint['rand_targets']
-        # model = load_model(path + filename, 'fc', num_hidden)
-        model = load_model(path + filename)
+        model = load_model(path + filename, 'fc', num_hidden, nchannels=1)
+        #model = load_model(path + filename)
         #train_labels = checkpoint['rand_targets']
-        train_loader, val_loader = CIFARSubset(args, **kwargs)
+        train_loader, val_loader = MNIST(args, **kwargs)
         #train_loader.dataset.targets = train_labels
         criterion = CrossEntropyLoss().to(device)
 
@@ -160,31 +174,31 @@ if __name__ == '__main__':
         frobenius_bounds.append(float(frob_bound))
         spec_l2_bounds.append(float(spec_l2_bound))
 
-        sharpness = calc_exp_sharpness(model, init_model, device, train_loader, criterion)
-        print('sharpness', sharpness)
+        # sharpness = calc_exp_sharpness(model, init_model, device, train_loader, criterion)
+        #print('sharpness', sharpness)
 
     # x_big = ['10K', '20K', '30K', '40K', '50K']
     x_small = ['1K', '2K', '3K', '4K', '5K', '10K', '20K']
     # x_small = ['10K', '20K', '30K', '50K']
-    x_big = ['8', '16', '32', '64', '128', '256', '512', '1k']
-    # plot_error(tr_error_list, val_error_list, x_small, 'Random Labels VGG')
+    x_fc = ['8', '16', '32', '64', '128', '256', '512', '1k', '2k', '4k', '8k']
+    plot_error(tr_error_list, val_error_list, x_fc, 'Real Labels FC')
     all_data = (l2_norms, l1_path_norms, l2_path_norms, spec_norms)
-    plot_all(all_data, x_small, 'Norms for random labels VGG')
+    plot_all(all_data, x_fc, 'Norms for real labels FC')
 
     plot_list(l2_norms, 'l2 norm')
     plot_list(l1_path_norms, 'l1path')
     plot_list(l2_path_norms, 'l2path')
     plot_list(spec_norms, 'spectral')
-    plot_l2_norm(l2_norms, x_small)
+    plot_l2_norm(l2_norms, x_fc)
     print(l2_norms)
-    plot_spectral(spec_norms, x_small)
+    plot_spectral(spec_norms, x_fc)
     print(spec_norms)
-    plot_l1_path(l1_path_norms, x_small)
+    plot_l1_path(l1_path_norms, x_fc)
     print(l1_path_norms)
-    plot_l2_path(l2_path_norms, x_small)
+    plot_l2_path(l2_path_norms, x_fc)
     print(l2_path_norms)
 
     plot_list(l1_max_bounds, 'l1 max bound')
     plot_list(spec_l2_bounds, 'spectral l2 bound')
     plot_list(frobenius_bounds, 'frobenius bound')
-    plot_list(sharpness_list, 'sharpness')
+    #plot_list(sharpness_list, 'sharpness')

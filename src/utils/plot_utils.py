@@ -37,10 +37,10 @@ def plot_l1_path(data: List, x):
 
 
 def plot_error(data1: List, data2: List, x, title):
-    data1.insert(4, 0.02)
-    data2.insert(4, 0.89)
-    data1.insert(8, 0.2)
-    data2.insert(8, 0.9)
+    # data1.insert(4, 0.02)
+    # data2.insert(4, 0.89)
+    # data1.insert(8, 0.2)
+    # data2.insert(8, 0.9)
     plt.plot(x, data1, marker='o')
     plt.plot(x, data2, marker='o')
     plt.ylabel('error')
@@ -51,10 +51,10 @@ def plot_error(data1: List, data2: List, x, title):
 
 def plot_all(data, x, title):
     l2, l1_path, l2_path, spectral = data
-    l2.insert(4, 1.044356499327962e-09)
-    spectral.insert(4, 1.0256027650833768e-09)
-    l1_path.insert(4, 9.820030170477851)
-    l2_path.insert(4, 0.7)
+    # l2.insert(4, 1.044356499327962e-09)
+    # spectral.insert(4, 1.0256027650833768e-09)
+    # l1_path.insert(4, 9.820030170477851)
+    #l2_path.insert(4, 0.7)
     l2 = np.asarray(l2)
     l2_path = np.asarray(l2_path)
     l2 = (l2 - np.min(l2)) / np.ptp(l2)
