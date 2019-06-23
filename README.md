@@ -68,18 +68,10 @@ When evaluating a single model:
 * `--randomlabels`: Weather to traing with random labels (options: True | False, defaut: False)
 
 
-## Output
-This evalation provides a plot on the training results and on different norms as complexity measure.
-Sharpness calculation is optional and not included in this plot.
+### Output
+When running the above two evaluations of the models trained with random labels, the following output on the training as well as the calculation of norms is generated:
+Sharpness is optional and not included in this plot.
 
-!!show plots
-<img src=/src/fc_training.png></img>
+![fc](plots/fc_training.png) ![fc](plots/norms_fc.png)
+![vgg](plots/vgg_training.png) ![vgg](plots/norms_true_vgg.png)
 
-
-## Conclusion
-Deep neural networks have good generalization behavior in practice, but it is still unclear how we can measure and explain such generalization in greater detail. This study explores different potential complexity measures, compares the results with the results in the paper and discusses the similarities and differences in the results, as well as, the effectiveness and limitations of each measure.
-The results show, that a combination of expected sharpness and norms do seem to capture much of the generalization behavior, especially in terms of varying training set sizes. However, the measures largely fail to explain generalization when changing size of the architecture. Summing up, the proposed measures in the paper provide valueable insights on generalization but are not a valid generic generalization measure that captures generalization with respect to training data, architecture and optimization.
-A topic which is still left unresolved is how the choice of optimization algorithm biases such complexity to be low,
-and what is the precise relationship between optimization and implicit regularization, which is targeted by follw-up papers by the author. 
-
-## Abstract
