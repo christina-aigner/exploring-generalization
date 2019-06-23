@@ -1,6 +1,7 @@
 import torch.nn as nn
 
 class Network(nn.Module):
+    """Generates a VGG network as specified in Neyshabur et. al. 2017 Appendix A."""
     def __init__(self, nchannels, nclasses):
         super(Network, self).__init__()
         config = [64, 64, 'MaxPool', 128, 128, 'MaxPool', 256, 256, 'MaxPool', 512, 512, 'AvgPool']

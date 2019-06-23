@@ -1,21 +1,24 @@
 import math
-import random
 
 import numpy as np
 from torch.utils.data import DataLoader
 
-from measures.measures_old import *
+from measures.measures import *
+from utils.model_utils import reparam
 
 
-# This function reparametrizes the networks with batch normalization in a way that it calculates the same function as the
-# original network but without batch normalization. Instead of removing batch norm completely, we set the bias and mean
-# to zero, and scaling and variance to one
-# Warning: This function only works for convolutional and fully connected networks. It also assumes that
-# module.children() returns the children of a module in the forward pass order. Recurssive construction is allowed.
-
-
-# evaluate the model on the given set
 def validate(model, device, data_loader: DataLoader, criterion):
+    """
+    Calculates the loss and error of the model on a given data set.
+    Args:
+        model: model which should be evaluated
+        device: cuda device
+        data_loader: the DataLoader of the data set on which the model should be evaluated
+        criterion: optimization criterion for the loss function
+
+    Returns:
+
+    """
     sum_loss, sum_correct = 0, 0
     margin = torch.Tensor([]).to(device)
 
@@ -48,43 +51,21 @@ def validate(model, device, data_loader: DataLoader, criterion):
     return 1 - (sum_correct / len_dataset), (sum_loss / len_dataset), margin
 
 
-def reparam(model, prev_layer=None):
-    for child in model.children():
-        module_name = child._get_name()
-        prev_layer = reparam(child, prev_layer)
-        if module_name in ['Linear', 'Conv1d', 'Conv2d', 'Conv3d']:
-            prev_layer = child
-        elif module_name in ['BatchNorm2d', 'BatchNorm1d']:
-            with torch.no_grad():
-                scale = child.weight / ((child.running_var + child.eps).sqrt())
-                prev_layer.bias.copy_(
-                    child.bias + (scale * (prev_layer.bias - child.running_mean)))
-                perm = list(reversed(range(prev_layer.weight.dim())))
-                prev_layer.weight.copy_(
-                    (prev_layer.weight.permute(perm) * scale).permute(perm))
-                child.bias.fill_(0)
-                child.weight.fill_(1)
-                child.running_mean.fill_(0)
-                child.running_var.fill_(1)
-    return prev_layer
-
-def calc_sharpness(model, init_model, device, train_loader, criterion):
-    sh = Sharpness()
-    calc_measure(model, init_model, sh.update_bounds, 'sharpness')
-    sh.clean_error, clean_loss, _ = validate(model, device, train_loader, criterion)
-    # collect 20 random samples
-    for v in range(1):
-        sh.current_pert = random.uniform(sh.lower.numpy(), sh.upper.numpy())
-        model = copy.deepcopy(model)
-        calc_measure(model, init_model, sh.add_perturbation, 'sharpness')
-        tr_error, tr_loss, _ = validate(model, device, train_loader, criterion)
-        local_sharpness = tr_error - sh.clean_error
-        if local_sharpness > sh.sharpness:
-            sh.sharpness = local_sharpness
-    return sh.sharpness
-
-
 def calc_exp_sharpness(model, init_model, device, train_loader, criterion):
+    """
+    Calculates the expected sharpness of a model, by drawing random perturbations from a
+    Gaussian distribution.
+    Args:
+        model: model for which the sharpness should be analysed
+        init_model: untrained base model
+        device: cuda device
+        train_loader: data loader of the training set
+        criterion: optimizer of the loss function
+
+    Returns:
+        expected sharpness of the model.
+
+    """
     clean_model = copy.deepcopy(model)
     clean_error, clean_loss, clean_margin = validate(clean_model, device, train_loader, criterion)
     calc_measure(model, init_model, add_gauss_perturbation, 'sharpness')
@@ -92,11 +73,22 @@ def calc_exp_sharpness(model, init_model, device, train_loader, criterion):
     return pert_loss - clean_loss
 
 
-# This function calculates a measure on the given model
-# measure_func is a function that returns a value for a given linear or convolutional layer
-# calc_measure calculates the values on individual layers and then calculate the final value based on the given operator
 def calc_measure(model, init_model, measure_func, operator, kwargs={}, p=1):
-    measure_val = 0
+    """
+    Provides a generic structure to calculate any measure given in 'measure_func' on the given model.
+    This implementation is based on Neyshabur's repository on "generalization-bounds".
+    Args:
+        model: the model for which the measure should be calculated.
+        init_model:  untrained base model.
+        measure_func: the function of the measure, which should be computed
+        operator: how the calculated function flows into the overall value of the measure.
+        kwargs:
+        p:
+
+    Returns:
+        the calculation of a given measure function for the given model.
+
+    """
     if operator == 'product':
         measure_val = math.exp(
             calc_measure(model, init_model, measure_func, 'log_product', kwargs, p))
@@ -123,25 +115,27 @@ def calc_measure(model, init_model, measure_func, operator, kwargs={}, p=1):
     return measure_val
 
 
-# This function calculates various measures on the given model and returns two dictionaries:
-# 1) measures: different norm based measures on the model
-# 2) bounds: different generalization bounds on the model
-def calculate(trained_model, init_model, device, trainingsetsize, margin, nchannels,
-              nclasses, img_dim):
+def calculate_norms(trained_model, init_model, device, margin, nchannels, img_dim):
+    """
+    Calculates l1_norm, l2_norm, spec_norm, l1_path and l2_path norm on a given model.
+
+    Args:
+        trained_model: the model for which the measure should be calculated.
+        init_model: untrained base model
+        device: cuda device
+        trainingsetsize: trainingset size which the model was trained on
+        margin: margin of the model
+        nchannels: number of channels of the input image
+        nclasses: number of classes for the softmax output
+        img_dim: dimensions of the input image
+
+    Returns:
+        5-tuple of norms of the specified model
+    """
+
     model = copy.deepcopy(trained_model)
     reparam(model)
-    reparam(init_model)
 
-    # size of the training set
-    m = trainingsetsize
-
-    # depth
-    d = calc_measure(model, init_model, depth, 'sum', {})
-
-    # number of parameters (not including batch norm)
-    nparam = calc_measure(model, init_model, n_param, 'sum', {})
-
-    measure, bound = {}, {}
     with torch.no_grad():
         l1_norm = calc_measure(model, init_model, norm, 'product',
                                {'p': 1, 'q': float('Inf')}) / margin
@@ -154,81 +148,4 @@ def calculate(trained_model, init_model, device, trainingsetsize, margin, nchann
         l2_path = lp_path_norm(model, device, p=2,
                                input_size=[1, nchannels, img_dim, img_dim]) / margin
 
-        measure['L_{3,1.5} norm'] = calc_measure(model, init_model, norm, 'product',
-                                                 {'p': 3, 'q': 1.5}) / margin
-        measure['L_1.5 operator norm'] = calc_measure(model, init_model, op_norm,
-                                                      'product', {'p': 1.5}) / margin
-        measure['Trace norm'] = calc_measure(model, init_model, op_norm, 'product',
-                                             {'p': 1}) / margin
-        measure['L1.5_path norm'] = lp_path_norm(model, device, p=1.5,
-                                                 input_size=[1, nchannels, img_dim,
-                                                             img_dim]) / margin
-
-        # Generalization bounds: constants and additive logarithmic factors are not included
-        # This value of alpha is based on the improved depth dependency by Golowith et al. 2018
-        alpha = math.sqrt(d + math.log(nchannels * img_dim * img_dim))
-        # L1_max Bound (Bartlett and Mendelson 2002)
-        l1_max_bound = (alpha * l1_norm / math.sqrt(m))
-        # Frobenious Bound (Neyshabur et al. 2015)
-        frobenius_bound = (alpha * l2_norm / math.sqrt(m))
-
-        # 'Spec_Fro Bound (Neyshabur et al. 2018)'
-        ratio = calc_measure(model, init_model, h_dist_op_norm, 'norm',
-                             {'p': 2, 'q': 2, 'p_op': float('Inf')}, p=2)
-        spec_l2_bound = (d * spec_norm * ratio / math.sqrt(m))
-
-    return l1_norm, l2_norm, spec_norm, l1_path, l2_path, l1_max_bound, frobenius_bound, spec_l2_bound
-
-
-def calculate_no_margin(trained_model, init_model, device, trainingsetsize, nchannels,
-                        nclasses, img_dim):
-    model = copy.deepcopy(trained_model)
-    reparam(model)
-    reparam(init_model)
-
-    # size of the training set
-    m = trainingsetsize
-
-    # depth
-    d = calc_measure(model, init_model, depth, 'sum', {})
-
-    # number of parameters (not including batch norm)
-    nparam = calc_measure(model, init_model, n_param, 'sum', {})
-
-    measure, bound = {}, {}
-    with torch.no_grad():
-        l1_norm = calc_measure(model, init_model, norm, 'product',
-                               {'p': 1, 'q': float('Inf')})
-        l2_norm = calc_measure(model, init_model, norm, 'product',
-                               {'p': 2, 'q': 2})
-        spec_norm = calc_measure(model, init_model, op_norm, 'product',
-                                 {'p': float('Inf')})
-        l1_path = lp_path_norm(model, device, p=1,
-                               input_size=[1, nchannels, img_dim, img_dim])
-        l2_path = lp_path_norm(model, device, p=2,
-                               input_size=[1, nchannels, img_dim, img_dim])
-
-        measure['L_{3,1.5} norm'] = calc_measure(model, init_model, norm, 'product',
-                                                 {'p': 3, 'q': 1.5})
-        measure['L_1.5 operator norm'] = calc_measure(model, init_model, op_norm,
-                                                      'product', {'p': 1.5})
-        measure['Trace norm'] = calc_measure(model, init_model, op_norm, 'product',
-                                             {'p': 1})
-        measure['L1.5_path norm'] = lp_path_norm(model, device, p=1.5,
-                                                 input_size=[1, nchannels, img_dim,
-                                                             img_dim])
-
-        # Generalization bounds: constants and additive logarithmic factors are not included
-        # This value of alpha is based on the improved depth dependency by Golowith et al. 2018
-        alpha = math.sqrt(d + math.log(nchannels * img_dim * img_dim))
-        # L1_max Bound (Bartlett and Mendelson 2002)
-        l1_max_bound = (alpha * l1_norm / math.sqrt(m))
-        # Frobenious Bound (Neyshabur et al. 2015)
-        frobenius_bound = (alpha * l2_norm / math.sqrt(m))
-
-        # 'Spec_Fro Bound (Neyshabur et al. 2018)'
-        ratio = calc_measure(model, init_model, h_dist_op_norm, 'norm',
-                             {'p': 2, 'q': 2, 'p_op': float('Inf')}, p=2)
-        spec_l2_bound = (d * spec_norm * ratio / math.sqrt(m))
-
-    return l1_norm, l2_norm, spec_norm, l1_path, l2_path, l1_max_bound, frobenius_bound, spec_l2_bound
+    return l1_norm, l2_norm, spec_norm, l1_path, l2_path

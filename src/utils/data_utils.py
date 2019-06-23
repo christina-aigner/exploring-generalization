@@ -1,15 +1,26 @@
 from collections import Counter
+from typing import Tuple
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms, datasets
 
 
-# Load and Preprocess data.
-# Loading: If the dataset is not in the given directory, it will be downloaded.
-# Preprocessing: This includes normalizing each channel and data augmentation by random cropping and horizontal flipping
-def load_data(split, dataset_name, datadir, corrupt_prob=1.0):
+def load_data(split, dataset_name, datadir, corrupt_prob=1.0) -> Dataset:
+    """
+    Loads a dataset with given name from torchvision.datasets
+
+    Args:
+        split: Train or test data set
+        dataset_name: MNSIT | CIFAR10 | CIFAR10RandomLabels
+        datadir: directory where dataset should be downloaded.
+        corrupt_prob: if dataset = CIFAR10RandomLabelss: the percentage of random labels in the dataset.
+
+    Returns:
+        torchvision.Dataset
+
+    """
 
     if dataset_name == 'MNIST':
         normalize = transforms.Normalize(mean=[0.131], std=[0.289])
@@ -20,7 +31,6 @@ def load_data(split, dataset_name, datadir, corrupt_prob=1.0):
     val_transform = transforms.Compose([transforms.Resize(32), transforms.ToTensor(), normalize])
 
     if dataset_name == 'CIFAR10':
-        # if CIFAR dataset
         if split == 'train':
             dataset = datasets.CIFAR10(root=datadir, train=True, download=True,
                                        transform=tr_transform)
@@ -47,14 +57,11 @@ def load_data(split, dataset_name, datadir, corrupt_prob=1.0):
 
 
 class CIFAR10RandomLabels(datasets.CIFAR10):
-    """CIFAR10 dataset, with support for randomly corrupt labels.
-    Params
-    ------
-    corrupt_prob: float
-      Default 1.0. The probability of a label being replaced with
-      random label.
-    num_classes: int
-      Default 10. The number of classes in the dataset.
+    """
+    CIFAR10 dataset, with support for randomly corrupt labels.
+        Args:
+            corrupt_prob: The probability of a label being replaced with random label.
+            num_classes: The number of classes in the dataset.
     """
 
     def __init__(self, corrupt_prob=1.0, num_classes=10, **kwargs):
@@ -69,15 +76,23 @@ class CIFAR10RandomLabels(datasets.CIFAR10):
         mask = np.random.rand(len(labels)) <= corrupt_prob
         rnd_labels = np.random.choice(self.n_classes, mask.sum())
         labels[mask] = rnd_labels
-        # we need to explicitly cast the labels from npy.int64 to
-        # builtin int type, otherwise pytorch will fail...
         labels = [int(x) for x in labels]
 
         self.targets = labels
 
 
-def CIFARSubset(args, batchsize=64, **kwargs):
-    # loading data
+def CIFARSubset(args, batchsize=64, **kwargs) -> Tuple[DataLoader, DataLoader]:
+    """
+    Draws a Subset of CIFAR10 with fixed indizes based on args.trainingsetsize
+    Args:
+        args: Arguments of python argument parser
+        batchsize: default = 64
+        **kwargs: cuda arguments
+
+    Returns:
+        CIFAR10 dataloader of the training and test set on the given subset indizes
+
+    """
     if args.randomlabels == True:
         train_dataset = load_data('train', 'CIFAR10RandomLabels', args.datadir)
     else:
@@ -93,7 +108,17 @@ def CIFARSubset(args, batchsize=64, **kwargs):
 
 
 def MNIST(args, batchsize=64, **kwargs):
-    # loading data
+    """
+    Loads the MNIST dataset into the DataLoader
+    Args:
+        args: Arguments of python argument parser
+        batchsize: default = 64
+        **kwargs: cuda arguments
+
+    Returns:
+        dataloader of the training and test set for MNIST
+
+    """
     if args.randomlabels == True:
         train_dataset = load_data('train', 'MNIST', args.datadir)
     else:
@@ -107,7 +132,20 @@ def MNIST(args, batchsize=64, **kwargs):
     return train_loader, val_loader
 
 
-def get_classbalance(dataset, setsize, kwargs):
-    train2_loader = DataLoader(dataset, batch_size=setsize, shuffle=True, **kwargs)
-    for data, target in train2_loader:
+def get_classbalance(dataset, setsize, kwargs) -> Counter:
+    """
+    Calculates class inbalances in a given dataset.
+
+    Args:
+        dataset: set which should be analyzes
+        setsize: size of the dataset
+        kwargs: cuda arguments
+
+    Returns:
+        a counter with number of examples in each class.
+
+
+    """
+    train_loader = DataLoader(dataset, batch_size=setsize, shuffle=True, **kwargs)
+    for data, target in train_loader:
         return Counter(target.numpy())

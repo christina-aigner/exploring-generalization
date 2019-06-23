@@ -1,36 +1,85 @@
 # Exploring Generalization in Deep Learning
-This repository contains the code to train convolutional and fully connected networks and compute various measures and generalization bounds on convolutional and fully connected networks. The architecture, training procedure and some of the measures are chosen the same the following paper:
+This is a comparative experimental study on generalization in deep learning and deals with the search of a complexity measure which can explain generalization of trained models. The goals is to analyze generalization behavior with respect to difference in 1) model architecture and 2) training set size. For this, a vgg network is trained with various training subsets of CIFAR10, as well as CIFAR10 subsets with random labels. Furthermore, I set these experiements in contrast to a fully connected two-layer perceptron with a variying number of hidden units.
+The attached paper analyzes the results in comparison to the results in the following paper:
 
 **[Exploring Generalization in Deep Learning.](https://arxiv.org/abs/1805.12076)**  
 [Behnam Neyshabur](https://www.neyshabur.net), [Srinadh Bhojanapalli](http://ttic.uchicago.edu/~srinadh/), [David McAllester](http://ttic.uchicago.edu/~dmcallester/), [Nathan Srebro](http://www.ttic.edu/srebro).  
 Neural Information Processing Systems (NIPS), 2017
 
 
-## Usage
-1. Install *Python 3.6* and *PyTorch 0.4.1*.
+## Set Up
+1. Install a recent Anaconda environment, or *Python 3.6*, *PyTorch 1.1.0* and *Numpy 1.16.3*
 2. Clone the repository:
    ```
-   git clone https://github.com/bneyshabur/over-parametrization.git
+   git clone https://github.com/christina-aigner/exploring-generalization-in-deep-learning
    ```
-3. As a simple example, the following command trains a VGG-like architecture on *CIFAR10* dataset and then computes several measures/bounds on the learned network:
-   ```
-   python main.py --dataset CIFAR10 --model vgg
-   ```
-## Main Inputs Arguments
-* `--no-cuda`: disables cuda training
-* `--datadir`: path to the directory that contains the datasets (default: datasets)
-* `--dataset`: name of the dataset(options: MNIST | CIFAR10 | CIFAR100 | SVHN, default: CIFAR10). If the dataset is not in the desired directory, it will be downloaded.
-* `--model`: architecture(options: vgg | fc, default: vgg). You can add your own model to the `models` directory.
 
-## Reported Measures
-After training the network, following measures can be computed. Please see the file `measures.py` for explanation of each measure:
-* `L_pq norm`: product of Lpq norm of layers
-* `L_p-path norm`: Lp-path norm of the network
-* `L_p operator norm`: product of Lp norm of eigen-values of layers
+## Training
+To run a training session of a FC with MNIST run the following command and specify the number of hidden units:
+   ```
+   cd src
+   python train.py --network=fc --numhidden=16 --dataset=MNIST
+   ```
+   For training a VGG on CIFAR Subset (choose --trainingsetsize accordingly) run:
+   ```
+   cd src
+   python train.py --network=vgg --trainingsetsize=5000 --dataset=CIFARSubset
+   ```
+   For training random labels on a CIFAR Subset use:
+   ```
+   cd src
+   python train.py --network=vgg --trainingsetsize=5000 --dataset=CIFARSubset --randomlabels=True
+   ```
+ 
+### Inputs Arguments for Training
+* `--datadir`: path to the directory that contains the datasets (default: ../datasets)
+* `--dataset`: name of the dataset(options: MNIST | CIFARSubse, default: MNISTt)
+* `--network`: architecture(options: vgg | fc, default: fc).
+* `--hiddenunits`: number of hidden units
+* `--trainingsetsize`: training set size of CIFAR10
+* `--randomlabels`: Weather to traing with random labels (options: True | False, defaut: False)
+* `--epochs`: Number of maximal epochs to train
+* `--saveepochs`: List of epochs where the model should be saved as checkpoint
 
-We also compute and report the following generalization bounds:
-* `L_1,inf bound`: Generalization bound by Bartlett and Mendelson 2002 (depth dependency from Golowich et al. 2018).
-* `L_3,1.5 bound`: Generalization bound by Neyshabur et al. 2015 (depth dependency from Golowich et al. 2018).
-* `Frobenious bound`: Generalization bound by Neyshabur et al. 2015 (depth dependency from Golowich et al. 2018).
-* `Spec_L1 bound`: Generalization bound by Bartlett et al. 2017.
-* `Spec_Fro bound`: Generalization bound by Neyshabur et al. 2018.
+## Evaluation
+Evaluation of a set of previously trained models.
+To evaluate the saved models of FC with varying number of hidden units, run:
+   ```
+   cd src
+   python evaluate.py --savedmodels=fc
+   ```
+To evaluate the saved models of VGG with varying number of training set sizes, run:
+   ```
+   cd src
+   python evaluate.py --savedmodels=vgg
+   ```
+
+### Inputs Arguments for Evaluation
+When evaluated this saved models in this repo:
+* `--savedmodels`: collection of saved models (options: vgg | fc)
+
+When evaluating a single model:
+* `--modelpath`: path to the directory that contains the model checkpoint to be evaluated
+* `--datadir`: path to the directory that contains the datasets (default: ../datasets)
+* `--dataset`: name of the dataset(options: MNIST | CIFARSubse, default: MNISTt)
+* `--network`: architecture(options: vgg | fc, default: fc).
+* `--hiddenunits`: number of hidden units
+* `--trainingsetsize`: training set size of CIFAR10
+* `--randomlabels`: Weather to traing with random labels (options: True | False, defaut: False)
+
+
+## Output
+This evalation provides a plot on the training results and on different norms as complexity measure.
+Sharpness calculation is optional and not included in this plot.
+
+!!show plots
+<img src=/src/fc_training.png></img>
+
+
+## Conclusion
+Deep neural networks have good generalization behavior in practice, but it is still unclear how we can measure and explain such generalization in greater detail. This study explores different potential complexity measures, compares the results with the results in the paper and discusses the similarities and differences in the results, as well as, the effectiveness and limitations of each measure.
+The results show, that a combination of expected sharpness and norms do seem to capture much of the generalization behavior, especially in terms of varying training set sizes. However, the measures largely fail to explain generalization when changing size of the architecture. Summing up, the proposed measures in the paper provide valueable insights on generalization but are not a valid generic generalization measure that captures generalization with respect to training data, architecture and optimization.
+A topic which is still left unresolved is how the choice of optimization algorithm biases such complexity to be low,
+and what is the precise relationship between optimization and implicit regularization, which is targeted by follw-up papers by the author. 
+
+## Abstract
