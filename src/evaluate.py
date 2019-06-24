@@ -64,7 +64,6 @@ if __name__ == '__main__':
     ]
 
     # collectors for norms
-    l1_norms = []
     l2_norms = []
     spec_norms = []
     l1_path_norms = []
@@ -126,9 +125,8 @@ if __name__ == '__main__':
             val_error_list.append(checkpoint['val_error'])
 
             if (checkpoint['tr_error'] < 0.01):
-                l1, l2, spec, l1_path, l2_path = calculate_norms(
-                    model, init_model, device, margin, nchannels, img_dim)
-                l1_norms.append(float(l1))
+                l2, spec, l1_path, l2_path = calculate_norms(
+                    model, device, margin, nchannels, img_dim)
                 l2_norms.append(float(l2))
                 spec_norms.append(float(spec))
                 l1_path_norms.append(float(l1_path))
