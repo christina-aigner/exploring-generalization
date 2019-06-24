@@ -1,5 +1,5 @@
 # Exploring Generalization in Deep Learning
-This is a comparative experimental study on generalization in deep learning and deals with the search of a complexity measure which can explain generalization of trained models. The goals is to analyze generalization behavior with respect to difference in 1) model architecture and 2) training set size. For this, a vgg network is trained with various training subsets of CIFAR10, as well as CIFAR10 subsets with random labels. Furthermore, I set these experiements in contrast to a fully connected two-layer perceptron with a variying number of hidden units.
+This is a comparative experimental study on generalization in deep learning and deals with the search of a complexity measure which can explain generalization of trained models. The goals is to analyze generalization behavior with respect to difference in 1) model architecture and 2) training set size. For this, a vgg network is trained with various training subsets of CIFAR10, as well as CIFAR10 subsets with random labels. Furthermore, I set these experiments in contrast to a fully connected two-layer perceptron with a variying number of hidden units.
 The attached paper analyzes the results in comparison to the results in the following paper:
 
 **[Exploring Generalization in Deep Learning.](https://arxiv.org/abs/1805.12076)**  
